@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Highly accentuated S-curves that overshoot their midpoints -->
+  
+  <!-- Horizontal outward branching S-curve (left paper) -->
+  <path d="M 104,98 C 48,98 75,66 19,66" fill="none" stroke="#888888" stroke-width="14" stroke-linecap="round"/>
+  
+  <!-- Vertical outward branching S-curve (upper paper) -->
+  <path d="M 104,98 C 104,48 84,74 84,24" fill="none" stroke="#888888" stroke-width="14" stroke-linecap="round"/>
+  
+  <!-- Branch nodes (3:4 aspect ratio portrait boxes, touching the edges) -->
+  <rect x="4" y="46" width="30" height="40" rx="3" fill="#ffffff" stroke="#888888" stroke-width="8"/>
+  <rect x="69" y="4" width="30" height="40" rx="3" fill="#ffffff" stroke="#888888" stroke-width="8"/>
+  
+  <!-- Root node at bottom-right (3:4 aspect ratio portrait box, touching bottom-right) -->
+  <rect x="85" y="72" width="39" height="52" rx="4" fill="#ffffff" stroke="#888888" stroke-width="8"/>
+</svg>
