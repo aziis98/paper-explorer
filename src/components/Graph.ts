@@ -1,0 +1,317 @@
+import * as d3 from 'd3'
+import type { Paper, Connection } from '../types'
+import { fmt } from '../utils'
+
+export interface GraphOptions {
+  onPaperClick: (paper: Paper, ev: MouseEvent) => void
+  onHover: (paper: Paper, ev: MouseEvent) => void
+  onHoverLeave: () => void
+}
+
+export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
+  const MARGIN = { top: 40, right: 50, bottom: 60, left: 80 }
+  let cW = window.innerWidth - MARGIN.left - MARGIN.right
+  let cH = window.innerHeight - MARGIN.top - MARGIN.bottom
+
+  let xScaleBase: d3.ScaleLinear<number, number> | null = null
+  let yScaleBase: d3.ScaleContinuousNumeric<number, number, any> | null = null
+  let currentTransform = d3.zoomIdentity
+
+  const svg = d3.select<SVGSVGElement, unknown>(svgEl)
+    .attr('width', window.innerWidth)
+    .attr('height', window.innerHeight)
+
+  svg.selectAll('*').remove()
+
+  svg
+    .append('rect')
+    .attr('width', window.innerWidth)
+    .attr('height', window.innerHeight)
+    .attr('fill', '#f8fafc')
+
+  const g = svg
+    .append('g')
+    .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`)
+
+  const gGrid = g.append('g').attr('class', 'grid')
+  const gLines = g.append('g')
+  const gDots = g.append('g')
+  const gXAxis = g
+    .append('g')
+    .attr('class', 'axis')
+    .attr('transform', `translate(0,${cH})`)
+  const gYAxis = g.append('g').attr('class', 'axis')
+
+  g.append('text')
+    .attr('x', cW / 2)
+    .attr('y', cH + 46)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 11)
+    .attr('fill', '#94a3b8')
+    .attr('font-family', 'system-ui')
+    .text('Publication year')
+
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -cH / 2)
+    .attr('y', -62)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 11)
+    .attr('fill', '#94a3b8')
+    .attr('font-family', 'system-ui')
+    .text('Total citations')
+
+  const defs = svg.append('defs')
+
+  defs
+    .append('clipPath')
+    .attr('id', 'clip')
+    .append('rect')
+    .attr('width', cW + 2)
+    .attr('height', cH + 2)
+    .attr('x', -1)
+    .attr('y', -1)
+
+  defs
+    .append('marker')
+    .attr('id', 'arrow')
+    .attr('viewBox', '0 0 10 10')
+    .attr('refX', 9)
+    .attr('refY', 5)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto-start-reverse')
+    .append('path')
+    .attr('d', 'M 0 0 L 10 5 L 0 10 z')
+    .attr('fill', '#94a3b8')
+
+  gLines.attr('clip-path', 'url(#clip)')
+  gDots.attr('clip-path', 'url(#clip)')
+
+  const zoomBehavior = d3
+    .zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.15, 60])
+    .on('zoom', (ev: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+      const t = ev.transform
+      currentTransform = d3.zoomIdentity.translate(t.x, 0).scale(t.k)
+      if (xScaleBase) doDraw()
+    })
+
+  svg.call(zoomBehavior)
+  svg.on('dblclick.zoom', null)
+
+  let localPapers: Paper[] = []
+  let localConnections: Connection[] = []
+  let localSelectedId: string | null = null
+  let localHoveredId: string | null = null
+
+  function xsc() {
+    return currentTransform.rescaleX(xScaleBase!)
+  }
+
+  function buildScales() {
+    const years = localPapers.map(p => p.year).filter((y): y is number => y !== null)
+    if (!years.length) {
+      xScaleBase = null
+      return false
+    }
+    const cites = localPapers.map(p => p.citations)
+    const minY = Math.min(...years) - 3, maxY = Math.max(...years) + 3
+    const maxC = Math.max(...cites)
+
+    if (xScaleBase) {
+      const cur = xsc()
+      const vMin = cur.invert(0), vMax = cur.invert(cW)
+      xScaleBase = d3.scaleLinear().domain([minY, maxY]).range([0, cW])
+      const p0 = xScaleBase(vMin), p1 = xScaleBase(vMax)
+      const k = cW / (p1 - p0)
+      currentTransform = d3.zoomIdentity.translate(-p0 * k, 0).scale(k)
+      svg.call(zoomBehavior.transform, currentTransform)
+    } else {
+      xScaleBase = d3.scaleLinear().domain([minY, maxY]).range([0, cW])
+    }
+
+    yScaleBase = d3.scaleSymlog().constant(1).domain([0, maxC * 1.18]).range([cH, 0]).nice()
+    return true
+  }
+
+  function getNodeY(p: Paper) {
+    if (!yScaleBase) return 0
+    const baseY = yScaleBase(p.citations)
+    const samePos = localPapers
+      .filter(pp => pp.year === p.year && pp.citations === p.citations)
+      .sort((a, b) => a.id.localeCompare(b.id))
+
+    if (samePos.length <= 1) return baseY
+    const idx = samePos.findIndex(pp => pp.id === p.id)
+    return baseY - idx * 12
+  }
+
+  function doDraw() {
+    if (!xScaleBase || !yScaleBase) return
+    const xs = xsc()
+
+    gGrid.call(d3.axisLeft(yScaleBase).ticks(5).tickSize(-cW).tickFormat(() => ''))
+    gGrid.selectAll('line').attr('stroke', '#eef2f7').attr('stroke-dasharray', '3,3')
+    gGrid.select('.domain').remove()
+
+    const ticks = xs.ticks(Math.max(3, Math.round(cW / 90))).filter(Number.isInteger)
+    gXAxis.call(d3.axisBottom(xs).tickValues(ticks).tickFormat(d3.format('d')))
+    gXAxis.select('.domain').attr('stroke', '#e2e8f0')
+    gXAxis.selectAll('line').attr('stroke', '#e2e8f0')
+
+    gYAxis.call(
+      d3.axisLeft(yScaleBase).ticks(5).tickFormat((d: d3.NumberValue) => {
+        const val = d as number
+        return val >= 1 ? fmt(val) : val.toString()
+      }),
+    )
+    gYAxis.select('.domain').attr('stroke', '#e2e8f0')
+    gYAxis.selectAll('line').attr('stroke', '#e2e8f0')
+
+    const lineData = localConnections
+      .map(c => ({
+        ...c,
+        f: localPapers.find(p => p.id === c.fromId),
+        t: localPapers.find(p => p.id === c.toId),
+      }))
+      .filter((c): c is Connection & { f: Paper; t: Paper } => !!(c.f?.year && c.t?.year))
+
+    const lines = gLines.selectAll<SVGPathElement, (typeof lineData)[0]>('.rl').data(lineData, d => d.fromId + d.toId)
+
+    const enteredLines = lines
+      .enter()
+      .append('path')
+      .attr('class', 'rl')
+      .attr('stroke-opacity', 0)
+      .attr('fill', 'none')
+      .attr('marker-end', 'url(#arrow)')
+
+    enteredLines.transition().duration(500).attr('stroke-opacity', 0.18)
+
+    lines
+      .merge(enteredLines)
+      .attr('opacity', d => {
+        if (!localHoveredId) return 0.6
+        if (d.fromId === localHoveredId || d.toId === localHoveredId) return 1
+        return 0.1
+      })
+      .attr('stroke', d => d.f?.color || '#94a3b8')
+      .attr('stroke-width', d =>
+        localHoveredId && (d.fromId === localHoveredId || d.toId === localHoveredId) ? 2.5 : 1.5,
+      )
+
+    gLines
+      .selectAll<SVGPathElement, (typeof lineData)[0]>('.rl')
+      .attr('d', d => {
+        const x1 = xs(d.t.year!), y1 = getNodeY(d.t), x2 = xs(d.f.year!), y2 = getNodeY(d.f)
+        const dx = x2 - x1
+        const cp = Math.abs(dx) * 0.45
+        return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
+      })
+
+    lines.exit().remove()
+
+    const dots = gDots.selectAll<SVGCircleElement, Paper>('.pdot').data(localPapers, (d: Paper) => d.id)
+
+    const entered = dots
+      .enter()
+      .append('circle')
+      .attr('class', 'pdot')
+      .attr('cx', d => (d.year ? xs(d.year) : -999))
+      .attr('cy', d => getNodeY(d))
+      .attr('r', 0)
+      .attr('fill', d => d.color)
+      .attr('fill-opacity', d => {
+        if (localHoveredId) {
+          const connected =
+            d.id === localHoveredId ||
+            localConnections.some(
+              c =>
+                (c.fromId === localHoveredId && c.toId === d.id) ||
+                (c.toId === localHoveredId && c.fromId === d.id),
+            )
+          return connected ? 1 : 0.1
+        }
+        return d.isRef ? 0.62 : 0.88
+      })
+      .attr('stroke', '#fff')
+      .attr('stroke-width', d => (d.isRef ? 1.5 : 2))
+      .on('mousemove', (ev: MouseEvent, d: Paper) => {
+        options.onHover(d, ev)
+      })
+      .on('mouseleave', () => {
+        options.onHoverLeave()
+      })
+      .on('click', (ev: MouseEvent, d: Paper) => {
+        ev.stopPropagation()
+        options.onPaperClick(d, ev)
+      })
+
+    entered
+      .transition()
+      .duration(380)
+      .ease(d3.easeBounceOut)
+      .attr('r', d => (d.isRef ? 5 : 8))
+
+    dots
+      .merge(entered)
+      .attr('cx', d => (d.year ? xs(d.year) : -999))
+      .attr('cy', d => yScaleBase!(d.citations))
+      .attr('r', d => (d.id === localSelectedId ? 10 : d.isRef ? 5 : 8))
+      .attr('stroke-width', d => (d.id === localSelectedId ? 2.5 : d.isRef ? 1.5 : 2))
+      .attr('fill', d => d.color)
+      .attr('fill-opacity', d => {
+        if (localHoveredId) {
+          const connected =
+            d.id === localHoveredId ||
+            localConnections.some(
+              c =>
+                (c.fromId === localHoveredId && c.toId === d.id) ||
+                (c.toId === localHoveredId && c.fromId === d.id),
+            )
+          return connected ? 1 : 0.1
+        }
+        return d.isRef ? 0.62 : 0.88
+      })
+
+    dots.exit().transition().duration(200).attr('r', 0).remove()
+  }
+
+  function resize() {
+    cW = window.innerWidth - MARGIN.left - MARGIN.right
+    cH = window.innerHeight - MARGIN.top - MARGIN.bottom
+    svg.attr('width', window.innerWidth).attr('height', window.innerHeight)
+    svg.select('rect').attr('width', window.innerWidth).attr('height', window.innerHeight)
+    gXAxis.attr('transform', `translate(0,${cH})`)
+    svg.select('text[text-anchor="middle"]').attr('x', cW / 2).attr('y', cH + 46)
+    svg.select('clipPath rect').attr('width', cW + 2).attr('height', cH + 2)
+    if (localPapers.length && buildScales()) doDraw()
+  }
+
+  window.addEventListener('resize', resize)
+
+  return {
+    update(papers: Paper[], connections: Connection[], selectedId: string | null, hoveredId: string | null) {
+      localPapers = papers
+      localConnections = connections
+      localSelectedId = selectedId
+      localHoveredId = hoveredId
+
+      if (papers.length === 0) {
+        gDots.selectAll('*').remove()
+        gLines.selectAll('*').remove()
+        gGrid.selectAll('*').remove()
+        gXAxis.selectAll('*').remove()
+        gYAxis.selectAll('*').remove()
+        xScaleBase = null
+      } else {
+        if (buildScales()) doDraw()
+      }
+    },
+    unmount() {
+      svg.selectAll('*').remove()
+      window.removeEventListener('resize', resize)
+    },
+  }
+}
