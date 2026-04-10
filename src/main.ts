@@ -4,6 +4,7 @@ interface Paper {
   id: string
   title: string
   year: number | null
+  date: string | null
   citations: number
   authors: string
   color: string
@@ -94,6 +95,7 @@ let currentCits: any[] = []
 let activeTab: 'refs' | 'cits' = 'refs'
 let sortKey: string = 'citations'
 let sortDesc: boolean = true
+let hoveredId: string | null = null
 
 const fmt = (n: number) =>
   n >= 1e6
@@ -247,10 +249,10 @@ function initChart() {
     .attr('markerWidth', 6)
     .attr('markerHeight', 6)
     .attr('orient', 'auto-start-reverse')
+    .attr('orient', 'auto-start-reverse')
     .append('path')
     .attr('d', 'M 0 0 L 10 5 L 0 10 z')
-    .attr('fill', '#6366f1')
-    .attr('opacity', 0.5)
+    .attr('fill', '#94a3b8')
 
   gLines.attr('clip-path', 'url(#clip)')
   gDots.attr('clip-path', 'url(#clip)')
@@ -420,11 +422,19 @@ function redraw() {
 
   lines
     .merge(enteredLines)
-    .attr(
-      'stroke',
-      (d: (typeof lineData)[0]) => d.f?.color || '#6366f1',
+    .attr('opacity', (d: (typeof lineData)[0]) => {
+      if (!hoveredId) return 0.6
+      if (d.fromId === hoveredId || d.toId === hoveredId)
+        return 1
+      return 0.1
+    })
+    .attr('stroke', (d: (typeof lineData)[0]) => d.f?.color || '#94a3b8')
+    .attr('stroke-width', (d: (typeof lineData)[0]) =>
+      hoveredId &&
+      (d.fromId === hoveredId || d.toId === hoveredId)
+        ? 2.5
+        : 1.5,
     )
-    .attr('stroke-width', 1)
 
   gLines
     .selectAll<SVGPathElement, (typeof lineData)[0]>('.rl')
@@ -452,15 +462,33 @@ function redraw() {
     .attr('cy', (d: Paper) => getNodeY(d))
     .attr('r', 0)
     .attr('fill', (d: Paper) => d.color)
-    .attr('fill-opacity', (d: Paper) =>
-      d.isRef ? 0.62 : 0.88,
-    )
+    .attr('fill-opacity', (d: Paper) => {
+      if (hoveredId) {
+        const connected =
+          d.id === hoveredId ||
+          connections.some(
+            c =>
+              (c.fromId === hoveredId && c.toId === d.id) ||
+              (c.toId === hoveredId && c.fromId === d.id),
+          )
+        return connected ? 1 : 0.1
+      }
+      return d.isRef ? 0.62 : 0.88
+    })
     .attr('stroke', '#fff')
     .attr('stroke-width', (d: Paper) => (d.isRef ? 1.5 : 2))
-    .on('mousemove', onHover)
+    .on('mousemove', (ev: MouseEvent, d: Paper) => {
+      onHover(ev, d)
+      if (hoveredId !== d.id) {
+        hoveredId = d.id
+        redraw()
+      }
+    })
     .on('mouseleave', () => {
       const tt = document.getElementById('tooltip')
       if (tt) tt.style.display = 'none'
+      hoveredId = null
+      redraw()
     })
     .on('click', onDotClick)
 
@@ -481,9 +509,19 @@ function redraw() {
       d.id === selectedId ? 2.5 : d.isRef ? 1.5 : 2,
     )
     .attr('fill', (d: Paper) => d.color)
-    .attr('fill-opacity', (d: Paper) =>
-      d.isRef ? 0.62 : 0.88,
-    )
+    .attr('fill-opacity', (d: Paper) => {
+      if (hoveredId) {
+        const connected =
+          d.id === hoveredId ||
+          connections.some(
+            c =>
+              (c.fromId === hoveredId && c.toId === d.id) ||
+              (c.toId === hoveredId && c.fromId === d.id),
+          )
+        return connected ? 1 : 0.1
+      }
+      return d.isRef ? 0.62 : 0.88
+    })
 
   dots
     .exit()
@@ -505,7 +543,8 @@ function onHover(ev: MouseEvent, d: Paper) {
 
   if (ttTitle) ttTitle.textContent = trunc(d.title, 80)
   if (ttAuth) ttAuth.textContent = d.authors
-  if (ttYear) ttYear.textContent = d.year?.toString() || '?'
+  if (ttYear)
+    ttYear.textContent = d.date || d.year?.toString() || '?'
   if (ttCites) ttCites.textContent = fmt(d.citations)
   if (ttHint)
     ttHint.style.display = d.refsLoaded ? 'none' : 'block'
@@ -540,7 +579,8 @@ function openInfoPanel(p: Paper) {
   if (authors) authors.textContent = p.authors
 
   const year = document.getElementById('info-year')
-  if (year) year.textContent = p.year?.toString() || '?'
+  if (year)
+    year.textContent = p.date || p.year?.toString() || '?'
 
   const cites = document.getElementById('info-cites')
   if (cites) cites.textContent = fmt(p.citations)
@@ -611,7 +651,7 @@ async function fetchRelatedMetadata(p: Paper) {
             url.searchParams.set('per_page', '50')
             url.searchParams.set(
               'select',
-              'id,title,publication_year,cited_by_count,doi,locations',
+              'id,title,publication_year,publication_date,cited_by_count,doi,locations',
             )
             const r = await fetch(url)
             return r.json()
@@ -626,7 +666,7 @@ async function fetchRelatedMetadata(p: Paper) {
       url.searchParams.set('sort', 'cited_by_count:desc')
       url.searchParams.set(
         'select',
-        'id,title,publication_year,cited_by_count,doi,locations',
+        'id,title,publication_year,publication_date,cited_by_count,doi,locations',
       )
       const r = await fetch(url)
       return r.json()
@@ -718,7 +758,9 @@ function renderRefTable() {
             color: '#64748b',
           },
         },
-        String(w.publication_year || '?'),
+        String(
+          w.publication_date || w.publication_year || '?',
+        ),
       ),
       $(
         'td',
@@ -744,12 +786,13 @@ function handleRowClick(w: any) {
       id: w.id,
       title: w.title,
       year: w.publication_year,
+      date: w.publication_date,
       citations: w.cited_by_count,
       authors: w.authors || '?',
       color: parent?.color || '#6366f1',
       doi: w.doi,
       arxivUrl: getArXivUrl(w),
-      isRef: w.type === 'ref',
+      isRef: true,
       parentId: selectedId,
       refsLoaded: false,
       referencedWorks: null,
@@ -882,7 +925,7 @@ async function loadRefs(paper: Paper, limit?: number) {
       url.searchParams.set('sort', 'cited_by_count:desc')
       url.searchParams.set(
         'select',
-        'id,title,publication_year,cited_by_count,authorships,doi,locations',
+        'id,title,publication_year,publication_date,cited_by_count,authorships,doi,locations',
       )
       const r = await fetch(url)
       const d = await r.json()
@@ -899,6 +942,7 @@ async function loadRefs(paper: Paper, limit?: number) {
           id: w.id,
           title: w.title || 'Untitled',
           year: w.publication_year,
+          date: w.publication_date,
           citations: w.cited_by_count || 0,
           authors: getAuthors(w),
           color: paper.color,
@@ -954,7 +998,7 @@ async function loadCitations(paper: Paper, limit?: number) {
     url.searchParams.set('sort', 'cited_by_count:desc')
     url.searchParams.set(
       'select',
-      'id,title,publication_year,cited_by_count,authorships,doi,locations',
+      'id,title,publication_year,publication_date,cited_by_count,authorships,doi,locations',
     )
     const r = await fetch(url)
     const d = await r.json()
@@ -971,6 +1015,7 @@ async function loadCitations(paper: Paper, limit?: number) {
         id: w.id,
         title: w.title || 'Untitled',
         year: w.publication_year,
+        date: w.publication_date,
         citations: w.cited_by_count || 0,
         authors: getAuthors(w),
         color: paper.color,
@@ -1008,6 +1053,9 @@ async function loadCitations(paper: Paper, limit?: number) {
 
 function updateSidebar() {
   const direct = papers.filter(p => !p.isRef)
+  const secondary = papers.filter(p => p.isRef)
+  const sorted = [...direct, ...secondary]
+
   const emptyMsg = document.getElementById('empty-msg')
   if (emptyMsg)
     emptyMsg.style.display = direct.length
@@ -1029,7 +1077,8 @@ function updateSidebar() {
   if (!list) return
   list.innerHTML = ''
 
-  direct.forEach(p => {
+  sorted.forEach(p => {
+    const isMain = !p.isRef
     const item = $(
       'div',
       {
@@ -1053,10 +1102,15 @@ function updateSidebar() {
           ).style.background = 'transparent'
         },
         onClick: () => {
+          if (!isMain) {
+            p.isRef = false
+            updateSidebar()
+          }
           selectedId = p.id
           openInfoPanel(p)
           redraw()
         },
+        opacity: isMain ? '1' : '0.5',
       },
       $('span', {
         style: {
@@ -1092,8 +1146,23 @@ function updateSidebar() {
               marginTop: '2px',
             },
           },
-          `${p.year || '?'} · ${fmt(p.citations)} citations`,
+          `${p.date || p.year || '?'} · ${fmt(p.citations)} citations`,
         ),
+        p.isRef ? $(
+          'span',
+          {
+            style: {
+              fontSize: '9px',
+              color: '#6366f1',
+              background: '#eef2ff',
+              padding: '1px 5px',
+              borderRadius: '4px',
+              marginLeft: 'auto',
+              fontWeight: '600'
+            }
+          },
+          'SECONDARY'
+        ) : null
       ),
       $(
         'button',
@@ -1177,7 +1246,7 @@ async function doSearch(q: string) {
     url.searchParams.set('per_page', '8')
     url.searchParams.set(
       'select',
-      'id,title,publication_year,cited_by_count,authorships,doi,referenced_works,locations',
+      'id,title,publication_year,publication_date,cited_by_count,authorships,doi,referenced_works,locations',
     )
     const r = await fetch(url)
     const d = await r.json()
@@ -1296,6 +1365,7 @@ function addFromResult(i: number) {
     id: w.id,
     title: w.title || 'Untitled',
     year: w.publication_year,
+    date: w.publication_date,
     citations: w.cited_by_count || 0,
     authors: getAuthors(w),
     color: getColor(idx),
