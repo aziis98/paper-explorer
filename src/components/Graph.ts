@@ -13,7 +13,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
   let cW = window.innerWidth - MARGIN.left - MARGIN.right
   let cH = window.innerHeight - MARGIN.top - MARGIN.bottom
 
-  let xScaleBase: d3.ScaleLinear<number, number> | null = null
+  let xScaleBase: d3.ScaleTime<number, number> | null = null
   let yScaleBase: d3.ScaleContinuousNumeric<number, number, any> | null = null
   let currentTransform = d3.zoomIdentity
 
@@ -49,7 +49,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
     .attr('font-size', 11)
     .attr('fill', '#94a3b8')
     .attr('font-family', 'system-ui')
-    .text('Publication year')
+    .text('Publication date')
 
   g.append('text')
     .attr('transform', 'rotate(-90)')
@@ -110,25 +110,30 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
   }
 
   function buildScales() {
-    const years = localPapers.map(p => p.year).filter((y): y is number => y !== null)
-    if (!years.length) {
+    const dates = localPapers
+      .filter(p => p.date)
+      .map(p => new Date(p.date!))
+    if (!dates.length) {
       xScaleBase = null
       return false
     }
     const cites = localPapers.map(p => p.citations)
-    const minY = Math.min(...years) - 3, maxY = Math.max(...years) + 3
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())))
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())))
+    minDate.setMonth(minDate.getMonth() - 6)
+    maxDate.setMonth(maxDate.getMonth() + 6)
     const maxC = Math.max(...cites)
 
     if (xScaleBase) {
       const cur = xsc()
       const vMin = cur.invert(0), vMax = cur.invert(cW)
-      xScaleBase = d3.scaleLinear().domain([minY, maxY]).range([0, cW])
+      xScaleBase = d3.scaleTime().domain([minDate, maxDate]).range([0, cW])
       const p0 = xScaleBase(vMin), p1 = xScaleBase(vMax)
       const k = cW / (p1 - p0)
       currentTransform = d3.zoomIdentity.translate(-p0 * k, 0).scale(k)
       svg.call(zoomBehavior.transform, currentTransform)
     } else {
-      xScaleBase = d3.scaleLinear().domain([minY, maxY]).range([0, cW])
+      xScaleBase = d3.scaleTime().domain([minDate, maxDate]).range([0, cW])
     }
 
     yScaleBase = d3.scaleSymlog().constant(1).domain([0, maxC * 1.18]).range([cH, 0]).nice()
@@ -139,7 +144,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
     if (!yScaleBase) return 0
     const baseY = yScaleBase(p.citations)
     const samePos = localPapers
-      .filter(pp => pp.year === p.year && pp.citations === p.citations)
+      .filter(pp => pp.date === p.date && pp.citations === p.citations)
       .sort((a, b) => a.id.localeCompare(b.id))
 
     if (samePos.length <= 1) return baseY
@@ -155,8 +160,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
     gGrid.selectAll('line').attr('stroke', '#eef2f7').attr('stroke-dasharray', '3,3')
     gGrid.select('.domain').remove()
 
-    const ticks = xs.ticks(Math.max(3, Math.round(cW / 90))).filter(Number.isInteger)
-    gXAxis.call(d3.axisBottom(xs).tickValues(ticks).tickFormat(d3.format('d')))
+    gXAxis.call(d3.axisBottom(xs).ticks(Math.max(3, Math.round(cW / 90))))
     gXAxis.select('.domain').attr('stroke', '#e2e8f0')
     gXAxis.selectAll('line').attr('stroke', '#e2e8f0')
 
@@ -175,7 +179,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
         f: localPapers.find(p => p.id === c.fromId),
         t: localPapers.find(p => p.id === c.toId),
       }))
-      .filter((c): c is Connection & { f: Paper; t: Paper } => !!(c.f?.year && c.t?.year))
+      .filter((c): c is Connection & { f: Paper; t: Paper } => !!(c.f?.date && c.t?.date))
 
     const lines = gLines.selectAll<SVGPathElement, (typeof lineData)[0]>('.rl').data(lineData, d => d.fromId + d.toId)
 
@@ -204,7 +208,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
     gLines
       .selectAll<SVGPathElement, (typeof lineData)[0]>('.rl')
       .attr('d', d => {
-        const x1 = xs(d.t.year!), y1 = getNodeY(d.t), x2 = xs(d.f.year!), y2 = getNodeY(d.f)
+        const x1 = xs(new Date(d.t.date!)), y1 = getNodeY(d.t), x2 = xs(new Date(d.f.date!)), y2 = getNodeY(d.f)
         const dx = x2 - x1
         const cp = Math.abs(dx) * 0.45
         return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
@@ -218,7 +222,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
       .enter()
       .append('circle')
       .attr('class', 'pdot')
-      .attr('cx', d => (d.year ? xs(d.year) : -999))
+      .attr('cx', d => (d.date ? xs(new Date(d.date)) : -999))
       .attr('cy', d => getNodeY(d))
       .attr('r', 0)
       .attr('fill', d => d.color)
@@ -256,7 +260,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
 
     dots
       .merge(entered)
-      .attr('cx', d => (d.year ? xs(d.year) : -999))
+      .attr('cx', d => (d.date ? xs(new Date(d.date)) : -999))
       .attr('cy', d => yScaleBase!(d.citations))
       .attr('r', d => (d.id === localSelectedId ? 10 : d.isRef ? 5 : 8))
       .attr('stroke-width', d => (d.id === localSelectedId ? 2.5 : d.isRef ? 1.5 : 2))

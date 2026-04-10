@@ -4,6 +4,8 @@
 
 A minimal, high-performance research paper exploration tool. Visualize citation graphs, discover references, and navigate the academic landscape with ease.
 
+![Screenshot](docs/screenshot-1.png)
+
 ## Features
 
 - **Interactive Citation Graph**: Visualize the relationships between papers across a timeline with citation counts on a log scale.
