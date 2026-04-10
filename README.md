@@ -1,8 +1,8 @@
 # 📄 Paper Explorer
 
-A minimal, high-performance research paper exploration tool. Visualize citation graphs, discover references, and navigate the academic landscape with ease.
+<img src="public/favicon.svg" width="64" align="left" style="margin-right: 16px;" />
 
-![Paper Explorer Favicon](public/favicon.svg)
+A minimal, high-performance research paper exploration tool. Visualize citation graphs, discover references, and navigate the academic landscape with ease.
 
 ## ✨ Features
 
