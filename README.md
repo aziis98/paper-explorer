@@ -4,6 +4,8 @@
 
 A minimal, high-performance research paper exploration tool. Visualize citation graphs, discover references, and navigate the academic landscape with ease.
 
+<br>
+
 ![Screenshot](docs/screenshot-1.png)
 
 ## Features
