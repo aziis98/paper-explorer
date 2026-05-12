@@ -11,6 +11,94 @@ export interface RightPanelOptions {
 }
 
 export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
+  el.innerHTML = ''
+  
+  let refTableBody: HTMLElement
+  
+  const header = $('div', { className: 'sidebar-header' }, 
+    $('div', { style: 'display: flex; align-items: center; gap: 8px' },
+      $('div', { id: 'info-color-dot', className: 'info-color-dot' }),
+      $('h2', {}, 'Paper Info')
+    ),
+    $('div', { style: 'display: flex; align-items: center; gap: 8px' },
+      $('button', { id: 'info-close', className: 'info-close-btn' }, 
+        $('iconify-icon', { icon: 'mdi:close' })
+      )
+    )
+  )
+
+  const infoSection = $('div', { className: 'info-section' },
+    $('h1', { id: 'info-title', className: 'info-title' }),
+    $('p', { id: 'info-authors', className: 'info-authors' }),
+    $('p', { id: 'info-year', className: 'info-year' }),
+    $('div', { className: 'info-cites-block' },
+      $('div', { style: 'display: flex; flex-direction: column' }, 
+        $('span', { className: 'info-cites-label' }, 'Citations'),
+        $('span', { id: 'info-cites', className: 'info-cites-value' })
+      )
+    ),
+    $('div', { className: 'info-links' },
+      $('a', { id: 'info-doi', target: '_blank', className: 'info-link-btn' }, $('iconify-icon', { icon: 'mdi:link' }), 'DOI'),
+      $('a', { id: 'info-arxiv', target: '_blank', className: 'info-link-btn' }, $('iconify-icon', { icon: 'mdi:file-document-outline' }), 'arXiv'),
+      $('a', { id: 'info-pdf', target: '_blank', className: 'info-link-btn' }, $('iconify-icon', { icon: 'mdi:file-pdf-box' }), 'PDF')
+    )
+  )
+
+  const refStatus = $('div', { id: 'ref-status', className: 'ref-status' })
+  const actionsSection = $('div', { className: 'actions-section' },
+    $('div', { className: 'actions-header' },
+      $('span', { className: 'actions-label' }, 'EXPAND GRAPH'),
+      refStatus
+    ),
+    $('div', { className: 'actions-grid' },
+      $('button', { id: 'load-refs-10', className: 'expand-btn' }, 'Refs (+10)'),
+      $('button', { id: 'load-refs-all', className: 'expand-btn' }, 'Refs (All)'),
+      $('button', { id: 'load-cits-10', className: 'expand-btn' }, 'Cits (+10)'),
+      $('button', { id: 'load-cits-all', className: 'expand-btn' }, 'Cits (All)')
+    )
+  )
+
+  const tabsContainer = $('div', { className: 'panel-tabs' },
+    $('button', { id: 'tab-refs' }, 'REFERENCES'),
+    $('button', { id: 'tab-cits' }, 'CITED IN')
+  )
+
+  const tableContainer = $('div', { className: 'table-container' },
+    $('table', { className: 'data-table' },
+      $('thead', {}, 
+        $('tr', {}, 
+          $('th', { id: 'th-title' }, 'Title'),
+          $('th', { id: 'th-year', style: 'width: 60px' }, 'Year'),
+          $('th', { id: 'th-cites', style: 'width: 80px; text-align: right' }, 'Cites')
+        )
+      ),
+      (refTableBody = $('tbody', { id: 'ref-table-body' }))
+    )
+  )
+
+  const refSpin = $('div', { id: 'ref-spin', className: 'ref-spin' }, 
+    $('iconify-icon', { icon: 'mdi:loading', class: 'spin', style: 'font-size: 24px; color: var(--accent-color)' })
+  )
+
+  el.append(header, infoSection, actionsSection, tabsContainer, tableContainer, refSpin)
+
+  const infoClose = el.querySelector('#info-close') as HTMLElement | null
+  if (infoClose) infoClose.onclick = () => options.onClose()
+
+  el.querySelector('#load-refs-10')?.addEventListener('click', () => options.onLoadRefs(10))
+  el.querySelector('#load-refs-all')?.addEventListener('click', () => options.onLoadRefs())
+  el.querySelector('#load-cits-10')?.addEventListener('click', () => options.onLoadCits(10))
+  el.querySelector('#load-cits-all')?.addEventListener('click', () => options.onLoadCits())
+
+  const tabRefs = el.querySelector('#tab-refs') as HTMLElement | null
+  const tabCits = el.querySelector('#tab-cits') as HTMLElement | null
+  tabRefs?.addEventListener('click', () => options.onSetTab('refs'))
+  tabCits?.addEventListener('click', () => options.onSetTab('cits'))
+
+  el.querySelector('#th-title')?.addEventListener('click', () => options.onSetSort('title'))
+  el.querySelector('#th-year')?.addEventListener('click', () => options.onSetSort('year'))
+  el.querySelector('#th-cites')?.addEventListener('click', () => options.onSetSort('citations'))
+
   const colorDot = el.querySelector('#info-color-dot') as HTMLElement | null
   const title = el.querySelector('#info-title') as HTMLElement | null
   const authors = el.querySelector('#info-authors') as HTMLElement | null
@@ -19,41 +107,6 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
   const doi = el.querySelector('#info-doi') as HTMLAnchorElement | null
   const arxiv = el.querySelector('#info-arxiv') as HTMLAnchorElement | null
   const pdf = el.querySelector('#info-pdf') as HTMLAnchorElement | null
-
-  const infoClose = el.querySelector('#info-close') as HTMLElement | null
-  if (infoClose) {
-    infoClose.onclick = () => options.onClose()
-  }
-
-  // Action buttons
-  const btnLoadRefs10 = el.querySelector('#load-refs-10')
-  const btnLoadRefsAll = el.querySelector('#load-refs-all')
-  const btnLoadCits10 = el.querySelector('#load-cits-10')
-  const btnLoadCitsAll = el.querySelector('#load-cits-all')
-  btnLoadRefs10?.addEventListener('click', () => options.onLoadRefs(10))
-  btnLoadRefsAll?.addEventListener('click', () => options.onLoadRefs())
-  btnLoadCits10?.addEventListener('click', () => options.onLoadCits(10))
-  btnLoadCitsAll?.addEventListener('click', () => options.onLoadCits())
-
-  // Tabs
-  const tabRefs = el.querySelector('#tab-refs') as HTMLElement | null
-  const tabCits = el.querySelector('#tab-cits') as HTMLElement | null
-  tabRefs?.addEventListener('click', () => options.onSetTab('refs'))
-  tabCits?.addEventListener('click', () => options.onSetTab('cits'))
-
-  // Sort headers
-  const thTitle = el.querySelector('#th-title')
-  const thYear = el.querySelector('#th-year')
-  const thCites = el.querySelector('#th-cites')
-  thTitle?.addEventListener('click', () => options.onSetSort('title'))
-  thYear?.addEventListener('click', () => options.onSetSort('year'))
-  thCites?.addEventListener('click', () => options.onSetSort('citations'))
-
-  const refSpin = el.querySelector('#ref-spin') as HTMLElement | null
-  const refStatus = el.querySelector('#ref-status') as HTMLElement | null
-  const refTableBody = el.querySelector('#ref-table-body') as HTMLElement | null
-
-  // Ensure panning/zooming over the panel doesn't move the graph
   const mousedownHandler = (e: Event) => e.stopPropagation()
   const wheelHandler = (e: Event) => e.stopPropagation()
   el.addEventListener('mousedown', mousedownHandler)
@@ -65,7 +118,6 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
 
   return {
     showPaper(p: Paper) {
-      el.style.display = 'block'
       if (colorDot) colorDot.style.background = p.color
       if (title) title.textContent = p.title
       if (authors) authors.textContent = p.authors
@@ -104,9 +156,6 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
           pdf.style.display = 'none'
         }
       }
-    },
-    hide() {
-      el.style.display = 'none'
     },
     setStatus(message: string, isWorking: boolean) {
       if (refStatus) refStatus.textContent = message
@@ -161,49 +210,12 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
         const row = $(
           'tr',
           {
-            class: 'ref-row',
-            style: {
-              borderBottom: '0.5px solid #f8fafc',
-              cursor: 'pointer',
-              background: inGraph ? '#f0f9ff' : 'transparent',
-            },
+            className: `ref-row ${inGraph ? 'in-graph' : ''}`,
             onClick: () => options.onRowClick(w),
           },
-          $(
-             'td',
-            {
-              style: {
-                padding: '8px 14px',
-                color: '#1e293b',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              },
-              title: w.title,
-            },
-            w.title,
-          ),
-           $(
-            'td',
-            {
-              style: {
-                padding: '8px 4px',
-                color: '#64748b',
-              },
-            },
-            String(getMinDate(w) || w.publication_year || '?'),
-          ),
-           $(
-            'td',
-            {
-              style: {
-                padding: '8px 14px',
-                color: '#6366f1',
-                textAlign: 'right',
-              },
-            },
-            fmt(w.cited_by_count || 0),
-          ),
+          $('td', { className: 'td-title', title: w.title }, w.title),
+          $('td', { className: 'td-year' }, String(getMinDate(w) || w.publication_year || '?')),
+          $('td', { className: 'td-cites' }, fmt(w.cited_by_count || 0)),
         )
         refTableBody.appendChild(row)
       })

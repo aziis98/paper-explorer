@@ -6,11 +6,43 @@ export interface SearchPanelOptions {
 }
 
 export function SearchPanel(el: HTMLElement, options: SearchPanelOptions) {
-  const searchInput = el.querySelector('#search-input') as HTMLInputElement | null
-  const resultsDropdown = el.querySelector('#results-drop') as HTMLElement | null
-  const resultsList = el.querySelector('#results-list') as HTMLElement | null
-  const noRes = el.querySelector('#no-res') as HTMLElement | null
-  const srchSpin = el.querySelector('#srch-spin') as HTMLElement | null
+  el.innerHTML = ''
+  
+  const searchInput = $('input', {
+    id: 'search-input',
+    type: 'text',
+    autocomplete: 'off',
+    placeholder: 'Search papers, try "Attention is all you need"',
+    style: {
+      width: '100%',
+      padding: '12px 16px',
+      border: 'none',
+      outline: 'none',
+      fontSize: '13px',
+      color: '#1e293b',
+      background: 'transparent',
+      borderRadius: '12px',
+    }
+  }) as HTMLInputElement
+
+  const srchSpin = $('div', { 
+    id: 'srch-spin', 
+    style: { display: 'none', position: 'absolute', right: '12px', top: '12px' } 
+  }, $('iconify-icon', { icon: 'mdi:loading', class: 'spin', style: 'color: #6366f1; font-size: 16px' }))
+
+  const resultsDropdown = $('div', {
+    id: 'results-drop',
+    style: { display: 'none', borderTop: '1px solid #f1f5f9', maxHeight: '400px', overflowY: 'auto' }
+  })
+
+  const resultsList = $('div', { id: 'results-list' })
+  const noRes = $('p', { 
+    id: 'no-res', 
+    style: { display: 'none', fontSize: '11px', color: '#94a3b8', textAlign: 'center', padding: '20px' } 
+  }, 'No results found.')
+
+  resultsDropdown.append(resultsList, noRes)
+  el.append(searchInput, srchSpin, resultsDropdown)
 
   let searchTimer: any
 

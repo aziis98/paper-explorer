@@ -1,5 +1,5 @@
 import type { Paper, Connection } from './types'
-import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid } from './utils'
+import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid, $ } from './utils'
 import { fetchReferencedWorkIds, fetchWorksByIds, fetchCitingWorks, searchWorks } from './api'
 
 import { Graph } from './components/Graph'
@@ -12,12 +12,63 @@ import { PaperCache } from './PaperCache'
 
 // Global State managed in store.ts
 
-// Dom Elements
-const graphEl = document.getElementById('chart-svg') as unknown as SVGSVGElement
-const tooltipEl = document.getElementById('tooltip') as HTMLElement
-const leftPanelEl = document.getElementById('left-panel') as HTMLElement
-const rightPanelEl = document.getElementById('right-panel') as HTMLElement
-const searchPanelEl = document.getElementById('search-panel') as HTMLElement
+// Dom Elements Construction
+const app = document.getElementById('app') as HTMLElement
+
+function createNavToggle(icon: string, target: HTMLElement, defaultCollapsed: boolean = false) {
+  const btn = $('button', { 
+    className: `nav-btn ${defaultCollapsed ? '' : 'active'}`,
+    title: 'Toggle Sidebar'
+  }, $('iconify-icon', { icon }))
+  
+  if (defaultCollapsed) target.classList.add('collapsed')
+  
+  btn.onclick = () => {
+    target.classList.toggle('collapsed')
+    btn.classList.toggle('active', !target.classList.contains('collapsed'))
+  }
+  return btn
+}
+
+const leftPanelEl = $('div', { className: 'sidebar left-2', id: 'left-panel' })
+const rightPanelEl = $('div', { className: 'sidebar right collapsed', id: 'right-panel' })
+const mainEl = $('main')
+
+const chartContainer = $('div', { id: 'chart-container' })
+const graphEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement
+graphEl.id = 'chart-svg'
+chartContainer.appendChild(graphEl)
+
+const searchPanelEl = $('div', { id: 'search-container' })
+
+mainEl.append(searchPanelEl, chartContainer)
+
+const workspaceEl = $('div', { id: 'workspace' }, leftPanelEl, mainEl, rightPanelEl)
+
+const navProjects = $('div', { className: 'nav-projects' }, 
+  $('iconify-icon', { icon: 'mdi:folder-outline' }),
+  $('span', {}, 'My Research Project'),
+  $('iconify-icon', { icon: 'mdi:chevron-down' })
+)
+
+const navLeftToggle = createNavToggle('mdi:format-list-bulleted', leftPanelEl)
+const navRightToggle = createNavToggle('mdi:information-outline', rightPanelEl, true)
+
+const navbarEl = $('div', { id: 'navbar' },
+  $('div', { style: 'display: flex; gap: 8px; align-items: center' },
+    navLeftToggle,
+    navProjects
+  ),
+  $('div', { style: 'display: flex; gap: 8px; align-items: center' },
+    navRightToggle
+  )
+)
+
+app.innerHTML = ''
+app.append(navbarEl, workspaceEl)
+
+const tooltipEl = $('div', { id: 'tooltip' })
+document.body.appendChild(tooltipEl)
 
 // Component Instantiation
 const tooltip = Tooltip(tooltipEl)
@@ -53,17 +104,19 @@ const leftPanel = LeftPanel(leftPanelEl, {
     state.papers = state.papers.filter(p => p.id !== id && p.parentId !== id)
     state.connections = state.connections.filter(c => c.fromId !== id && c.toId !== id)
     if (state.selectedId === id) {
-      rightPanel.hide()
+      rightPanelEl.classList.add('collapsed')
+      navRightToggle.classList.remove('active')
       state.selectedId = null
     }
     updateAll()
-  },
+  }
 })
 
 const rightPanel = RightPanel(rightPanelEl, {
   onClose: () => {
-    rightPanel.hide()
+    rightPanelEl.classList.add('collapsed')
     state.selectedId = null
+    navRightToggle.classList.remove('active')
     updateAll()
   },
   onRowClick: w => {
@@ -114,7 +167,7 @@ const rightPanel = RightPanel(rightPanelEl, {
   onLoadCits: async limit => {
     const p = state.papers.find(pp => pp.id === state.selectedId)
     if (p) await loadCitationsForPaper(p, limit)
-  },
+  }
 })
 
 const searchPanel = SearchPanel(searchPanelEl, {
@@ -194,6 +247,8 @@ function updateRightPanelData() {
 
 function openInfoPanel(p: Paper) {
   rightPanel.showPaper(p)
+  rightPanelEl.classList.remove('collapsed')
+  navRightToggle.classList.add('active')
   
   const cached = PaperCache.getCachedMetadata(p.id)
   if (cached) {

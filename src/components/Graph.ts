@@ -91,10 +91,16 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
   const zoomBehavior = d3
     .zoom<SVGSVGElement, unknown>()
     .scaleExtent([0.15, 60])
+    .on('start', () => {
+      svgEl.style.cursor = 'grabbing'
+    })
     .on('zoom', (ev: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
       const t = ev.transform
       currentTransform = d3.zoomIdentity.translate(t.x, 0).scale(t.k)
       if (xScaleBase) doDraw()
+    })
+    .on('end', () => {
+      svgEl.style.cursor = ''
     })
 
   svg.call(zoomBehavior)
@@ -226,7 +232,8 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
         const x1 = xs(new Date(d.t.date!)), y1 = getNodeY(d.t), x2 = xs(new Date(d.f.date!)), y2 = getNodeY(d.f)
         const dx = x2 - x1
         const cp = Math.abs(dx) * 0.45
-        return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`
+        const targetX = x2 + (d.f.id === localSelectedId ? 12 : d.f.isRef ? 7 : 10)
+        return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${targetX - cp} ${y2}, ${targetX} ${y2}`
       })
 
     lines.exit().remove()

@@ -1,12 +1,16 @@
 import type { Paper } from '../types'
-import { trunc, fmt } from '../utils'
+import { $, trunc, fmt } from '../utils'
 
 export function Tooltip(el: HTMLElement) {
-  const ttTitle = el.querySelector('#tt-title') as HTMLElement | null
-  const ttAuth = el.querySelector('#tt-auth') as HTMLElement | null
-  const ttYear = el.querySelector('#tt-year') as HTMLElement | null
-  const ttCites = el.querySelector('#tt-cites') as HTMLElement | null
-  const ttHint = el.querySelector('#tt-hint') as HTMLElement | null
+  el.innerHTML = ''
+  
+  const ttTitle = $('div', { id: 'tt-title', style: 'font-weight: 700; color: #1e293b; margin-bottom: 2px' })
+  const ttAuth = $('div', { id: 'tt-auth', style: 'font-size: 11px; color: #64748b; margin-bottom: 4px' })
+  const ttYear = $('div', { id: 'tt-year', style: 'font-size: 10px; color: #94a3b8; display: inline-block' })
+  const ttCites = $('div', { id: 'tt-cites', style: 'font-size: 10px; color: #6366f1; display: inline-block; margin-left: 8px; font-weight: 600' })
+  const ttHint = $('div', { id: 'tt-hint', style: 'font-size: 9px; color: #94a3b8; margin-top: 8px; font-style: italic' }, 'Click to see details & citations')
+
+  el.append(ttTitle, ttAuth, ttYear, ttCites, ttHint)
 
   return {
     show(d: Paper, ev: MouseEvent) {

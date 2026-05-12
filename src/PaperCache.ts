@@ -1,49 +1,81 @@
 import { sid } from './utils'
 
-const PREFIX = 'paper-openalex-'
+const CACHE_KEY = 'paper-explorer-cache'
+
+interface CacheState {
+  papers: Record<string, any>
+  refs: Record<string, string[]>
+  cits: Record<string, string[]>
+}
+
+let inMemoryCache: CacheState = { papers: {}, refs: {}, cits: {} }
+
+function loadCache() {
+  const saved = sessionStorage.getItem(CACHE_KEY)
+  if (saved) {
+    try {
+      inMemoryCache = JSON.parse(saved)
+      console.log(`[PaperCache] Loaded cache from session storage (${Object.keys(inMemoryCache.papers).length} papers)`)
+    } catch (e) {
+      console.error('[PaperCache] Failed to load cache', e)
+    }
+  }
+}
+
+function saveCache() {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(inMemoryCache))
+  } catch (e) {
+    console.warn('[PaperCache] Failed to save cache', e)
+  }
+}
+
+// Load cache immediately on module initialization
+loadCache()
 
 export const PaperCache = {
-  // Store a single paper's metadata in the flat cache
-  setPaper(w: any) {
+  setPaper(w: any, deferSave = false) {
     if (!w || !w.id) return
-    const key = `${PREFIX}${sid(w.id)}`
-    try {
-      sessionStorage.setItem(key, JSON.stringify(w))
-    } catch (e) {
-      console.warn(`[PaperCache] Failed to cache paper ${w.id}`, e)
+    const sId = sid(w.id)
+    
+    // Omit referenced_works to save space, store them in refs instead
+    const { referenced_works, ...rest } = w
+    inMemoryCache.papers[sId] = rest
+    
+    if (referenced_works && Array.isArray(referenced_works)) {
+      if (!inMemoryCache.refs[sId] || inMemoryCache.refs[sId].length < referenced_works.length) {
+        inMemoryCache.refs[sId] = referenced_works.map(id => sid(id))
+      }
     }
+    
+    if (!deferSave) saveCache()
   },
 
-  // Retrieve a single paper's metadata from the flat cache
   getPaper(id: string): any | null {
-    const key = `${PREFIX}${sid(id)}`
-    const saved = sessionStorage.getItem(key)
-    if (!saved) return null
-    try {
-      return JSON.parse(saved)
-    } catch (e) {
-      console.error(`[PaperCache] Failed to parse cached paper ${id}`, e)
-      return null
+    const sId = sid(id)
+    const paper = inMemoryCache.papers[sId]
+    if (!paper) return null
+    
+    const refs = inMemoryCache.refs[sId]
+    if (refs) {
+      // Reconstruct referenced_works when returning the paper
+      return { ...paper, referenced_works: refs }
     }
+    return paper
   },
 
   getCachedMetadata(id: string): { refs: any[]; cits: any[] } | null {
     const sId = sid(id)
-    const refsKey = `${PREFIX}refs-${sId}`
-    const citsKey = `${PREFIX}cits-${sId}`
+    const refIds = inMemoryCache.refs[sId]
+    const citIds = inMemoryCache.cits[sId]
 
-    const savedRefs = sessionStorage.getItem(refsKey)
-    const savedCits = sessionStorage.getItem(citsKey)
-
-    if (!savedRefs || !savedCits) {
+    // If citIds doesn't exist, we haven't fetched citations for this paper yet
+    if (!refIds || !citIds) {
       console.log(`[PaperCache] Cache miss for ${id}`)
       return null
     }
 
     try {
-      const refIds: string[] = JSON.parse(savedRefs)
-      const citIds: string[] = JSON.parse(savedCits)
-
       const refs = refIds.map(rid => this.getPaper(rid)).filter(Boolean)
       const cits = citIds.map(cid => this.getPaper(cid)).filter(Boolean)
 
@@ -59,21 +91,26 @@ export const PaperCache = {
 
   setCachedMetadata(id: string, refs: any[], cits: any[]) {
     const sId = sid(id)
-    const refsKey = `${PREFIX}refs-${sId}`
-    const citsKey = `${PREFIX}cits-${sId}`
 
     try {
       console.log(
-        `[PaperCache] Fragmenting and caching metadata for ${id} (${refs.length} refs, ${cits.length} cits)`,
+        `[PaperCache] Caching metadata for ${id} (${refs.length} refs, ${cits.length} cits)`,
       )
 
-      // Store individual papers in the flat cache
-      refs.forEach(w => this.setPaper(w))
-      cits.forEach(w => this.setPaper(w))
+      refs.forEach(w => this.setPaper(w, true))
+      cits.forEach(w => this.setPaper(w, true))
 
-      // Store only the ID lists for the relationships
-      sessionStorage.setItem(refsKey, JSON.stringify(refs.map(w => w.id)))
-      sessionStorage.setItem(citsKey, JSON.stringify(cits.map(w => w.id)))
+      // Merge new reference/citation IDs with any existing ones
+      inMemoryCache.refs[sId] = Array.from(new Set([
+        ...(inMemoryCache.refs[sId] || []),
+        ...refs.map(w => sid(w.id))
+      ]))
+      inMemoryCache.cits[sId] = Array.from(new Set([
+        ...(inMemoryCache.cits[sId] || []),
+        ...cits.map(w => sid(w.id))
+      ]))
+
+      saveCache()
     } catch (e) {
       console.warn(`[PaperCache] Failed to cache fragmented metadata for ${id}`, e)
     }
@@ -81,13 +118,10 @@ export const PaperCache = {
 
   clear() {
     console.info('[PaperCache] Clearing all cached paper metadata')
-    Object.keys(sessionStorage).forEach(key => {
-      if (key.startsWith(PREFIX)) {
-        sessionStorage.removeItem(key)
-      }
-    })
+    inMemoryCache = { papers: {}, refs: {}, cits: {} }
+    sessionStorage.removeItem(CACHE_KEY)
   },
 }
 
-// debug global access to sessionStorage
+// debug global access to the cache
 ;(window as any).PaperCache = PaperCache

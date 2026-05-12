@@ -7,9 +7,25 @@ export interface LeftPanelOptions {
 }
 
 export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
-  const emptyMsg = el.querySelector('#empty-msg') as HTMLElement | null
-  const totalsBadge = el.querySelector('#totals-badge') as HTMLElement | null
-  const list = el.querySelector('#papers-list') as HTMLElement | null
+  el.innerHTML = ''
+  
+  const header = $('div', { className: 'sidebar-header' }, 
+    $('h2', {}, 'Graph Papers'),
+    $('div', { style: 'display: flex; align-items: center; gap: 10px' },
+      $('span', { id: 'totals-badge', style: { fontSize: '10px', color: '#94a3b8', fontWeight: '600' } })
+    )
+  )
+
+  const list = $('div', { id: 'papers-list', style: { flex: '1', overflowY: 'auto', padding: '10px' } })
+  const emptyMsg = $('div', { id: 'empty-msg', style: { padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' } }, 
+    $('iconify-icon', { icon: 'mdi:Graph-outline', style: 'font-size: 32px; opacity: 0.3; margin-bottom: 10px' }),
+    $('p', {}, 'Graph is empty. Search and add papers to start exploring.')
+  )
+  
+  const totalsBadge = header.querySelector('#totals-badge') as HTMLElement | null
+
+  el.append(header, list)
+  list.appendChild(emptyMsg)
 
   // Setup mousedown/wheel blocker so it doesn't pan/zoom the map
   const mousedownHandler = (e: Event) => e.stopPropagation()
