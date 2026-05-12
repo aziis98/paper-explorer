@@ -7,19 +7,10 @@ import { Tooltip } from './components/Tooltip'
 import { LeftPanel } from './components/LeftPanel'
 import { RightPanel } from './components/RightPanel'
 import { SearchPanel } from './components/SearchPanel'
+import { state } from './store'
+import { PaperCache } from './PaperCache'
 
-// Global State
-let papers: Paper[] = []
-let connections: Connection[] = []
-let selectedId: string | null = null
-let hoveredId: string | null = null
-
-let currentRefs: any[] = []
-let currentCits: any[] = []
-let activeTab: 'refs' | 'cits' = 'refs'
-let sortKey: string = 'citations'
-let sortDesc: boolean = true
-let lastSearchResults: any[] = []
+// Global State managed in store.ts
 
 // Dom Elements
 const graphEl = document.getElementById('chart-svg') as unknown as SVGSVGElement
@@ -33,19 +24,19 @@ const tooltip = Tooltip(tooltipEl)
 
 const graph = Graph(graphEl, {
   onPaperClick: (paper) => {
-    selectedId = paper.id
+    state.selectedId = paper.id
     updateAll()
     openInfoPanel(paper)
   },
   onHover: (paper, ev) => {
-    hoveredId = paper.id
+    state.hoveredId = paper.id
     tooltip.show(paper, ev)
-    graph.update(papers, connections, selectedId, hoveredId)
+    graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
   },
   onHoverLeave: () => {
-    hoveredId = null
+    state.hoveredId = null
     tooltip.hide()
-    graph.update(papers, connections, selectedId, hoveredId)
+    graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
   },
 })
 
@@ -54,16 +45,16 @@ const leftPanel = LeftPanel(leftPanelEl, {
     if (paper.isRef) {
       paper.isRef = false
     }
-    selectedId = paper.id
+    state.selectedId = paper.id
     updateAll()
     openInfoPanel(paper)
   },
   onRemovePaper: id => {
-    papers = papers.filter(p => p.id !== id && p.parentId !== id)
-    connections = connections.filter(c => c.fromId !== id && c.toId !== id)
-    if (selectedId === id) {
+    state.papers = state.papers.filter(p => p.id !== id && p.parentId !== id)
+    state.connections = state.connections.filter(c => c.fromId !== id && c.toId !== id)
+    if (state.selectedId === id) {
       rightPanel.hide()
-      selectedId = null
+      state.selectedId = null
     }
     updateAll()
   },
@@ -72,13 +63,13 @@ const leftPanel = LeftPanel(leftPanelEl, {
 const rightPanel = RightPanel(rightPanelEl, {
   onClose: () => {
     rightPanel.hide()
-    selectedId = null
+    state.selectedId = null
     updateAll()
   },
   onRowClick: w => {
-    let p = papers.find(pp => pp.id === w.id)
+    let p = state.papers.find(pp => pp.id === w.id)
     if (!p) {
-      const parent = papers.find(pp => pp.id === selectedId)
+      const parent = state.papers.find(pp => pp.id === state.selectedId)
       p = {
         id: w.id,
         title: w.title,
@@ -93,42 +84,42 @@ const rightPanel = RightPanel(rightPanelEl, {
         arxivUrl: getArXivUrl(w),
         pdfUrl: getPdfUrl(w),
         isRef: true,
-        parentId: selectedId,
+        parentId: state.selectedId,
         refsLoaded: false,
         referencedWorks: null,
       }
-      papers.push(p)
-      if (selectedId) {
+      state.papers.push(p)
+      if (state.selectedId) {
         if (w.type === 'ref') {
-          connections.push({ fromId: selectedId, toId: w.id })
+          state.connections.push({ fromId: state.selectedId, toId: w.id })
         } else {
-          connections.push({ fromId: w.id, toId: selectedId })
+          state.connections.push({ fromId: w.id, toId: state.selectedId })
         }
       }
       updateAll()
     }
-    selectedId = p.id
+    state.selectedId = p.id
     updateAll()
     openInfoPanel(p)
   },
   onSetTab: tab => {
-    activeTab = tab
+    state.activeTab = tab
     updateRightPanelData()
   },
   onSetSort: key => {
-    if (sortKey === key) sortDesc = !sortDesc
+    if (state.sortKey === key) state.sortDesc = !state.sortDesc
     else {
-      sortKey = key
-      sortDesc = true
+      state.sortKey = key
+      state.sortDesc = true
     }
     updateRightPanelData()
   },
   onLoadRefs: async limit => {
-    const p = papers.find(pp => pp.id === selectedId)
+    const p = state.papers.find(pp => pp.id === state.selectedId)
     if (p) await loadRefsForPaper(p, limit)
   },
   onLoadCits: async limit => {
-    const p = papers.find(pp => pp.id === selectedId)
+    const p = state.papers.find(pp => pp.id === state.selectedId)
     if (p) await loadCitationsForPaper(p, limit)
   },
 })
@@ -137,8 +128,8 @@ const searchPanel = SearchPanel(searchPanelEl, {
   onSearch: async query => {
     searchPanel.setLoading(true)
     try {
-      lastSearchResults = await searchWorks(query)
-      searchPanel.showResults(lastSearchResults, new Set(papers.map(p => p.id)))
+      state.lastSearchResults = await searchWorks(query)
+      searchPanel.showResults(state.lastSearchResults, new Set(state.papers.map(p => p.id)))
     } catch {
       // Ignore API errors for search
     } finally {
@@ -146,9 +137,9 @@ const searchPanel = SearchPanel(searchPanelEl, {
     }
   },
   onAddResult: w => {
-    if (papers.find(p => p.id === w.id)) return
-    const idx = papers.filter(p => !p.isRef).length
-    papers.push({
+    if (state.papers.find(p => p.id === w.id)) return
+    const idx = state.papers.filter(p => !p.isRef).length
+    state.papers.push({
       id: w.id,
       title: w.title || 'Untitled',
       year: getMinYear(w),
@@ -167,29 +158,38 @@ const searchPanel = SearchPanel(searchPanelEl, {
       referencedWorks: w.referenced_works || null,
     })
     updateAll()
-    searchPanel.showResults(lastSearchResults, new Set(papers.map(p => p.id)))
+    searchPanel.showResults(state.lastSearchResults, new Set(state.papers.map(p => p.id)))
   },
 })
 
 // Orchestration Logic
 function updateAll() {
-  graph.update(papers, connections, selectedId, hoveredId)
-  leftPanel.update(papers, selectedId)
+  graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
+  leftPanel.update(state.papers, state.selectedId)
 }
 
 function updateRightPanelData() {
-  rightPanel.updateTabsAndSort(activeTab, sortKey, sortDesc)
+  rightPanel.updateTabsAndSort(state.activeTab, state.sortKey, state.sortDesc)
   rightPanel.renderTable(
-    currentRefs,
-    currentCits,
-    new Set(papers.map(p => p.id)),
+    state.currentRefs,
+    state.currentCits,
+    new Set(state.papers.map(p => p.id)),
   )
 }
 
 function openInfoPanel(p: Paper) {
   rightPanel.showPaper(p)
-  currentRefs = []
-  currentCits = []
+  
+  const cached = PaperCache.getCachedMetadata(p.id)
+  if (cached) {
+    state.currentRefs = cached.refs
+    state.currentCits = cached.cits
+    p.metadataLoaded = true
+  } else {
+    state.currentRefs = []
+    state.currentCits = []
+  }
+
   updateRightPanelData()
   if (!p.metadataLoaded) {
     loadMetadata(p)
@@ -211,8 +211,9 @@ async function loadMetadata(p: Paper) {
 
     const [refs, cits] = await Promise.all([refQuery, citQuery])
 
-    currentRefs = refs.map((w: any) => ({ ...w, type: 'ref' }))
-    currentCits = cits.map((w: any) => ({ ...w, type: 'cit' }))
+    state.currentRefs = refs.map((w: any) => ({ ...w, type: 'ref' }))
+    state.currentCits = cits.map((w: any) => ({ ...w, type: 'cit' }))
+    PaperCache.setCachedMetadata(p.id, state.currentRefs, state.currentCits)
 
     rightPanel.setStatus(`Found ${refs.length} refs & ${cits.length} citations.`, false)
     p.metadataLoaded = true
@@ -239,15 +240,15 @@ async function loadRefsForPaper(paper: Paper, limit?: number) {
       return
     }
 
-    const existSet = new Set(papers.map(p => p.id))
+    const existSet = new Set(state.papers.map(p => p.id))
     let toFetch = refIds.filter(id => !existSet.has(id))
     const alreadyThere = refIds.filter(id => existSet.has(id))
 
     if (toFetch.length) {
       const results = await fetchWorksByIds(toFetch, limit)
       results.forEach((w: any) => {
-        if (!w.publication_year || papers.some(px => px.id === w.id)) return
-        papers.push({
+        if (!w.publication_year || state.papers.some(px => px.id === w.id)) return
+        state.papers.push({
           id: w.id,
           title: w.title || 'Untitled',
           year: getMinYear(w),
@@ -272,8 +273,8 @@ async function loadRefsForPaper(paper: Paper, limit?: number) {
     }
 
     ;[...toFetch, ...alreadyThere].forEach(cid => {
-      if (!connections.some(c => c.fromId === paper.id && c.toId === cid)) {
-        connections.push({ fromId: paper.id, toId: cid })
+      if (!state.connections.some(c => c.fromId === paper.id && c.toId === cid)) {
+        state.connections.push({ fromId: paper.id, toId: cid })
       }
     })
 
@@ -295,8 +296,8 @@ async function loadCitationsForPaper(paper: Paper, limit?: number) {
     if (limit) results = results.slice(0, limit)
 
     results.forEach((w: any) => {
-      if (!w.publication_year || papers.some(px => px.id === w.id)) return
-      papers.push({
+      if (!w.publication_year || state.papers.some(px => px.id === w.id)) return
+      state.papers.push({
         id: w.id,
         title: w.title || 'Untitled',
         year: getMinYear(w),
@@ -317,8 +318,8 @@ async function loadCitationsForPaper(paper: Paper, limit?: number) {
     })
 
     results.forEach((w: any) => {
-      if (!connections.some(c => c.fromId === w.id && c.toId === paper.id)) {
-        connections.push({ fromId: w.id, toId: paper.id })
+      if (!state.connections.some(c => c.fromId === w.id && c.toId === paper.id)) {
+        state.connections.push({ fromId: w.id, toId: paper.id })
       }
     })
 

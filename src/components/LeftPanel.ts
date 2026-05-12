@@ -73,7 +73,7 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: p.color,
+              background: p.isRef ? '#cbd5e1' : p.color,
               flexShrink: '0',
               marginTop: '4px',
             },
@@ -87,7 +87,7 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
                 style: {
                   fontSize: '11px',
                   fontWeight: '500',
-                  color: '#1e293b',
+                  color: p.isRef ? '#94a3b8' : '#1e293b',
                   lineHeight: '1.4',
                 },
               },
@@ -104,23 +104,6 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
               },
               `${p.date || p.year || '?'} · ${fmt(p.citations)} citations`,
             ),
-            p.isRef
-              ? $(
-                  'span',
-                  {
-                    style: {
-                      fontSize: '9px',
-                      color: '#6366f1',
-                      background: '#eef2ff',
-                      padding: '1px 5px',
-                      borderRadius: '4px',
-                      marginLeft: 'auto',
-                      fontWeight: '600',
-                    },
-                  },
-                  'SECONDARY',
-                )
-              : null,
           ),
           $(
             'button',
