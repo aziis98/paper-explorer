@@ -611,7 +611,6 @@
           >
             <button
               id="tab-refs"
-              onclick="setTab('refs')"
               style="
                 font-size: 11px;
                 font-weight: 600;
@@ -628,7 +627,6 @@
             </button>
             <button
               id="tab-cits"
-              onclick="setTab('cits')"
               style="
                 font-size: 11px;
                 font-weight: 500;
@@ -678,6 +676,7 @@
                   "
                 >
                   <th
+                    id="th-title"
                     style="
                       padding: 8px 14px;
                       color: #94a3b8;
@@ -685,11 +684,11 @@
                       width: 62%;
                       cursor: pointer;
                     "
-                    onclick="setSort('title')"
                   >
                     Paper
                   </th>
                   <th
+                    id="th-year"
                     style="
                       padding: 8px 4px;
                       color: #94a3b8;
@@ -697,11 +696,11 @@
                       width: 16%;
                       cursor: pointer;
                     "
-                    onclick="setSort('year')"
                   >
                     Year
                   </th>
                   <th
+                    id="th-cites"
                     style="
                       padding: 8px 14px;
                       color: #94a3b8;
@@ -710,7 +709,6 @@
                       text-align: right;
                       cursor: pointer;
                     "
-                    onclick="setSort('citations')"
                   >
                     Cites
                   </th>
