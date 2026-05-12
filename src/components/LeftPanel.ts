@@ -4,15 +4,39 @@ import { $, trunc, fmt } from '../utils'
 export interface LeftPanelOptions {
   onPaperClick: (paper: Paper) => void
   onRemovePaper: (id: string) => void
+  onExport: (type: 'primary' | 'all') => void
 }
 
 export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
   el.innerHTML = ''
   
-  const header = $('div', { className: 'sidebar-header' }, 
-    $('h2', {}, 'Graph Papers'),
-    $('div', { style: 'display: flex; align-items: center; gap: 10px' },
+  const header = $('div', { className: 'sidebar-header', style: { flexDirection: 'column', alignItems: 'stretch', gap: '12px' } }, 
+    $('div', { style: 'display: flex; justify-content: space-between; align-items: center' },
+      $('h2', {}, 'Graph Papers'),
       $('span', { id: 'totals-badge', style: { fontSize: '10px', color: '#94a3b8', fontWeight: '600' } })
+    ),
+    $('div', { style: 'display: flex; gap: 8px; align-items: center' },
+      $('button', { className: 'export-btn', onClick: () => options.onExport('primary') }, $('iconify-icon', {icon: 'mdi:download'}), 'Primary .bib'),
+      $('button', { className: 'export-btn', onClick: () => options.onExport('all') }, $('iconify-icon', {icon: 'mdi:download'}), 'All .bib'),
+      $('div', { className: 'info-popup-container', style: { marginLeft: 'auto' } },
+        $('iconify-icon', { icon: 'mdi:information-outline', style: 'font-size: 16px' }),
+        $('div', { className: 'info-popup-content' },
+          $('strong', {}, 'BibTeX Export Specification'),
+          $('p', { style: 'margin-top: 6px; color: #64748b' }, 'The exported file will be a plaintext .bib file formatted for compatibility with LaTeX and modern reference managers (Zotero, Mendeley, etc).'),
+          $('pre', {}, `@article{Einstein1905W312345678,
+  title = {On the Electrodynamics of Moving Bodies},
+  author = {Einstein and others},
+  year = {1905},
+  doi = {10.1002/andp.19053221004},
+  url = {https://openalex.org/W312345678}
+}`),
+          $('ul', { style: 'margin-top: 6px; padding-left: 16px; color: #64748b; list-style-type: disc' },
+            $('li', { style: 'margin-bottom: 4px' }, $('strong', { style: 'color: #334155' }, 'Citation Key: '), 'Generated as ', $('code', { style: 'background: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-size: 9px' }, 'FirstAuthorYear + OpenAlexID'), ' to guarantee uniqueness.'),
+            $('li', { style: 'margin-bottom: 4px' }, $('strong', { style: 'color: #334155' }, 'Authors: '), 'Last names are properly delimited with ', $('code', { style: 'background: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-size: 9px' }, 'and'), ', or truncated with ', $('code', { style: 'background: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-size: 9px' }, 'and others'), '.'),
+            $('li', {}, $('strong', { style: 'color: #334155' }, 'Fields: '), 'Includes title, year, clean DOI, and the original OpenAlex URL.')
+          )
+        )
+      )
     )
   )
 

@@ -108,3 +108,35 @@ export function $(
   })
   return el
 }
+
+export function generateBibtex(papers: import('./types').Paper[]): string {
+  return papers.map(p => {
+    const firstAuthor = p.authors.split(',')[0].replace(/[^a-zA-Z]/g, '') || 'Unknown'
+    const year = p.year || 'UnknownYear'
+    const idStr = `${firstAuthor}${year}` + p.id.split('/').pop()
+
+    const authorField = p.authors.includes('et al.') 
+      ? p.authors.replace(', et al.', ' and others') 
+      : p.authors.split(', ').join(' and ')
+
+    let bib = `@article{${idStr},\n`
+    bib += `  title = {${p.title}},\n`
+    bib += `  author = {${authorField}},\n`
+    if (p.year) bib += `  year = {${p.year}},\n`
+    if (p.doi) bib += `  doi = {${p.doi.replace('https://doi.org/', '')}},\n`
+    if (p.id) bib += `  url = {${p.id}}\n`
+    bib += `}\n`
+
+    return bib
+  }).join('\n')
+}
+
+export function downloadBlob(content: string, filename: string, contentType: string) {
+  const blob = new Blob([content], { type: contentType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}

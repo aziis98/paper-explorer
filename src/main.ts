@@ -1,5 +1,5 @@
 import type { Paper, Connection } from './types'
-import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid, $, trunc } from './utils'
+import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid, $, trunc, generateBibtex, downloadBlob } from './utils'
 import { fetchReferencedWorkIds, fetchWorksByIds, fetchCitingWorks, searchWorks } from './api'
 
 import { Graph } from './components/Graph'
@@ -178,6 +178,12 @@ const leftPanel = LeftPanel(leftPanelEl, {
       state.selectedId = null
     }
     updateAll()
+  },
+  onExport: type => {
+    const toExport = type === 'primary' ? state.papers.filter(p => !p.isRef) : state.papers
+    if (!toExport.length) return
+    const bibtex = generateBibtex(toExport)
+    downloadBlob(bibtex, `${state.projectName.replace(/\s+/g, '_')}_${type}.bib`, 'text/plain')
   }
 })
 
