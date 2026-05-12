@@ -104,12 +104,13 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
   let localConnections: Connection[] = []
   let localSelectedId: string | null = null
   let localHoveredId: string | null = null
+  let lastPaperIds = new Set<string>()
 
   function xsc() {
     return currentTransform.rescaleX(xScaleBase!)
   }
 
-  function buildScales() {
+  function buildScales(newPapers: Paper[] = []) {
     const dates = localPapers
       .filter(p => p.date)
       .map(p => new Date(p.date!))
@@ -126,7 +127,21 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
 
     if (xScaleBase) {
       const cur = xsc()
-      const vMin = cur.invert(0), vMax = cur.invert(cW)
+      let vMin = cur.invert(0), vMax = cur.invert(cW)
+
+      const addedDates = newPapers.filter(p => p.date).map(p => new Date(p.date!))
+      if (addedDates.length > 0) {
+        const nMin = new Date(Math.min(...addedDates.map(d => d.getTime())))
+        const nMax = new Date(Math.max(...addedDates.map(d => d.getTime())))
+
+        // 1 month padding for new nodes
+        const pnMin = new Date(nMin); pnMin.setMonth(pnMin.getMonth() - 1)
+        const pnMax = new Date(nMax); pnMax.setMonth(pnMax.getMonth() + 1)
+
+        if (pnMin < vMin) vMin = pnMin
+        if (pnMax > vMax) vMax = pnMax
+      }
+
       xScaleBase = d3.scaleTime().domain([minDate, maxDate]).range([0, cW])
       const p0 = xScaleBase(vMin), p1 = xScaleBase(vMax)
       const k = cW / (p1 - p0)
@@ -297,6 +312,9 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
 
   return {
     update(papers: Paper[], connections: Connection[], selectedId: string | null, hoveredId: string | null) {
+      const addedPapers = papers.filter(p => !lastPaperIds.has(p.id))
+      lastPaperIds = new Set(papers.map(p => p.id))
+
       localPapers = papers
       localConnections = connections
       localSelectedId = selectedId
@@ -310,7 +328,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
         gYAxis.selectAll('*').remove()
         xScaleBase = null
       } else {
-        if (buildScales()) doDraw()
+        if (buildScales(addedPapers)) doDraw()
       }
     },
     unmount() {
