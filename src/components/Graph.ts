@@ -240,7 +240,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
       .attr('cx', d => (d.date ? xs(new Date(d.date)) : -999))
       .attr('cy', d => getNodeY(d))
       .attr('r', 0)
-      .attr('fill', d => d.isRef ? '#cbd5e1' : d.color)
+      .attr('fill', d => d.isRef ? '#64748b' : d.color)
       .attr('fill-opacity', d => {
         if (localHoveredId) {
           const connected =
@@ -279,7 +279,7 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
       .attr('cy', d => yScaleBase!(d.citations))
       .attr('r', d => (d.id === localSelectedId ? 10 : d.isRef ? 5 : 8))
       .attr('stroke-width', d => (d.id === localSelectedId ? 2.5 : d.isRef ? 1.5 : 2))
-      .attr('fill', d => d.isRef ? '#cbd5e1' : d.color)
+      .attr('fill', d => d.isRef ? '#64748b' : d.color)
       .attr('fill-opacity', d => {
         if (localHoveredId) {
           const connected =

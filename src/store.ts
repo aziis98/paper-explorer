@@ -25,3 +25,6 @@ export const state: State = {
   sortDesc: true,
   lastSearchResults: [],
 }
+
+// debug global access to state
+;(window as any).state = state

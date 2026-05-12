@@ -18,7 +18,7 @@ export async function fetchWorksByIds(ids: string[], limit?: number) {
   url.searchParams.set('per_page', '50')
   url.searchParams.set(
     'select',
-    'id,title,publication_year,publication_date,created_date,cited_by_count,authorships,doi,locations,primary_location',
+    'id,title,publication_year,publication_date,created_date,cited_by_count,authorships,doi,referenced_works,locations,primary_location',
   )
   const r = await fetch(url)
   const d = await r.json()
@@ -32,7 +32,7 @@ export async function fetchCitingWorks(paperId: string) {
   url.searchParams.set('sort', 'cited_by_count:desc')
   url.searchParams.set(
     'select',
-    'id,title,publication_year,publication_date,created_date,cited_by_count,authorships,doi,locations,primary_location',
+    'id,title,publication_year,publication_date,created_date,cited_by_count,authorships,doi,referenced_works,locations,primary_location',
   )
   const r = await fetch(url)
   const d = await r.json()

@@ -1,5 +1,5 @@
 import type { Paper, Connection } from './types'
-import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate } from './utils'
+import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid } from './utils'
 import { fetchReferencedWorkIds, fetchWorksByIds, fetchCitingWorks, searchWorks } from './api'
 
 import { Graph } from './components/Graph'
@@ -86,16 +86,9 @@ const rightPanel = RightPanel(rightPanelEl, {
         isRef: true,
         parentId: state.selectedId,
         refsLoaded: false,
-        referencedWorks: null,
+        referencedWorks: w.referenced_works || null,
       }
       state.papers.push(p)
-      if (state.selectedId) {
-        if (w.type === 'ref') {
-          state.connections.push({ fromId: state.selectedId, toId: w.id })
-        } else {
-          state.connections.push({ fromId: w.id, toId: state.selectedId })
-        }
-      }
       updateAll()
     }
     state.selectedId = p.id
@@ -163,9 +156,31 @@ const searchPanel = SearchPanel(searchPanelEl, {
 })
 
 // Orchestration Logic
+function syncAllConnections() {
+  const paperIds = new Set(state.papers.map(p => sid(p.id)))
+  state.papers.forEach(p1 => {
+    if (p1.referencedWorks) {
+      p1.referencedWorks.forEach(refId => {
+        const sRefId = sid(refId)
+        if (paperIds.has(sRefId)) {
+          const p2 = state.papers.find(p => sid(p.id) === sRefId)
+          if (p2) {
+            const sP1Id = sid(p1.id)
+            if (!state.connections.some(c => sid(c.fromId) === sP1Id && sid(c.toId) === sRefId)) {
+              state.connections.push({ fromId: p1.id, toId: p2.id })
+            }
+          }
+        }
+      })
+    }
+  })
+}
+
 function updateAll() {
+  syncAllConnections()
   graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
   leftPanel.update(state.papers, state.selectedId)
+  updateRightPanelData()
 }
 
 function updateRightPanelData() {
@@ -215,9 +230,17 @@ async function loadMetadata(p: Paper) {
     state.currentCits = cits.map((w: any) => ({ ...w, type: 'cit' }))
     PaperCache.setCachedMetadata(p.id, state.currentRefs, state.currentCits)
 
+    // Ensure all papers fetched have their referencedWorks tracked if available
+    refs.concat(cits).forEach((w: any) => {
+      const paper = state.papers.find(pp => pp.id === w.id)
+      if (paper && w.referenced_works) {
+        paper.referencedWorks = w.referenced_works
+      }
+    })
+
     rightPanel.setStatus(`Found ${refs.length} refs & ${cits.length} citations.`, false)
     p.metadataLoaded = true
-    updateRightPanelData()
+    updateAll()
   } catch (e) {
     console.error(e)
     rightPanel.setStatus('Error loading metadata.', false)
@@ -264,19 +287,13 @@ async function loadRefsForPaper(paper: Paper, limit?: number) {
           isRef: true,
           parentId: paper.id,
           refsLoaded: false,
-          referencedWorks: null,
+          referencedWorks: w.referenced_works || null,
         })
       })
 
       const addedIds = new Set(results.map((r: any) => r.id))
       toFetch = toFetch.filter(id => addedIds.has(id))
     }
-
-    ;[...toFetch, ...alreadyThere].forEach(cid => {
-      if (!state.connections.some(c => c.fromId === paper.id && c.toId === cid)) {
-        state.connections.push({ fromId: paper.id, toId: cid })
-      }
-    })
 
     paper.refsLoaded = true
     updateAll()
@@ -313,14 +330,8 @@ async function loadCitationsForPaper(paper: Paper, limit?: number) {
         isRef: true,
         parentId: paper.id,
         refsLoaded: false,
-        referencedWorks: null,
+        referencedWorks: w.referenced_works || null,
       })
-    })
-
-    results.forEach((w: any) => {
-      if (!state.connections.some(c => c.fromId === w.id && c.toId === paper.id)) {
-        state.connections.push({ fromId: w.id, toId: paper.id })
-      }
     })
 
     updateAll()

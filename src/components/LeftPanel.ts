@@ -73,7 +73,7 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: p.isRef ? '#cbd5e1' : p.color,
+              background: p.isRef ? '#64748b' : p.color,
               flexShrink: '0',
               marginTop: '4px',
             },
