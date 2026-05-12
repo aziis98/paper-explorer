@@ -8,30 +8,49 @@ export interface GraphOptions {
   onHoverLeave: () => void
 }
 
-export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
-  const MARGIN = { top: 40, right: 50, bottom: 60, left: 80 }
-  let cW = window.innerWidth - MARGIN.left - MARGIN.right
-  let cH = window.innerHeight - MARGIN.top - MARGIN.bottom
+export function Graph(
+  svgEl: SVGSVGElement,
+  options: GraphOptions,
+) {
+  const MARGIN = {
+    top: 40,
+    right: 50,
+    bottom: 60,
+    left: 80,
+  }
+  const getW = () => svgEl.parentElement?.clientWidth || window.innerWidth
+  const getH = () => svgEl.parentElement?.clientHeight || window.innerHeight
+
+  let cW = getW() - MARGIN.left - MARGIN.right
+  let cH = getH() - MARGIN.top - MARGIN.bottom
 
   let xScaleBase: d3.ScaleTime<number, number> | null = null
-  let yScaleBase: d3.ScaleContinuousNumeric<number, number, any> | null = null
+  let yScaleBase: d3.ScaleContinuousNumeric<
+    number,
+    number,
+    any
+  > | null = null
   let currentTransform = d3.zoomIdentity
 
-  const svg = d3.select<SVGSVGElement, unknown>(svgEl)
-    .attr('width', window.innerWidth)
-    .attr('height', window.innerHeight)
+  const svg = d3
+    .select<SVGSVGElement, unknown>(svgEl)
+    .attr('width', getW())
+    .attr('height', getH())
 
   svg.selectAll('*').remove()
 
   svg
     .append('rect')
-    .attr('width', window.innerWidth)
-    .attr('height', window.innerHeight)
+    .attr('width', getW())
+    .attr('height', getH())
     .attr('fill', '#f8fafc')
 
   const g = svg
     .append('g')
-    .attr('transform', `translate(${MARGIN.left},${MARGIN.top})`)
+    .attr(
+      'transform',
+      `translate(${MARGIN.left},${MARGIN.top})`,
+    )
 
   const gGrid = g.append('g').attr('class', 'grid')
   const gLines = g.append('g')
@@ -94,11 +113,16 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
     .on('start', () => {
       svgEl.style.cursor = 'grabbing'
     })
-    .on('zoom', (ev: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
-      const t = ev.transform
-      currentTransform = d3.zoomIdentity.translate(t.x, 0).scale(t.k)
-      if (xScaleBase) doDraw()
-    })
+    .on(
+      'zoom',
+      (ev: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+        const t = ev.transform
+        currentTransform = d3.zoomIdentity
+          .translate(t.x, 0)
+          .scale(t.k)
+        if (xScaleBase) doDraw()
+      },
+    )
     .on('end', () => {
       svgEl.style.cursor = ''
     })
@@ -125,39 +149,66 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
       return false
     }
     const cites = localPapers.map(p => p.citations)
-    const minDate = new Date(Math.min(...dates.map(d => d.getTime())))
-    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())))
+    const minDate = new Date(
+      Math.min(...dates.map(d => d.getTime())),
+    )
+    const maxDate = new Date(
+      Math.max(...dates.map(d => d.getTime())),
+    )
     minDate.setMonth(minDate.getMonth() - 6)
     maxDate.setMonth(maxDate.getMonth() + 6)
     const maxC = Math.max(...cites)
 
     if (xScaleBase) {
       const cur = xsc()
-      let vMin = cur.invert(0), vMax = cur.invert(cW)
+      let vMin = cur.invert(0),
+        vMax = cur.invert(cW)
 
-      const addedDates = newPapers.filter(p => p.date).map(p => new Date(p.date!))
+      const addedDates = newPapers
+        .filter(p => p.date)
+        .map(p => new Date(p.date!))
       if (addedDates.length > 0) {
-        const nMin = new Date(Math.min(...addedDates.map(d => d.getTime())))
-        const nMax = new Date(Math.max(...addedDates.map(d => d.getTime())))
+        const nMin = new Date(
+          Math.min(...addedDates.map(d => d.getTime())),
+        )
+        const nMax = new Date(
+          Math.max(...addedDates.map(d => d.getTime())),
+        )
 
         // 1 month padding for new nodes
-        const pnMin = new Date(nMin); pnMin.setMonth(pnMin.getMonth() - 1)
-        const pnMax = new Date(nMax); pnMax.setMonth(pnMax.getMonth() + 1)
+        const pnMin = new Date(nMin)
+        pnMin.setMonth(pnMin.getMonth() - 1)
+        const pnMax = new Date(nMax)
+        pnMax.setMonth(pnMax.getMonth() + 1)
 
         if (pnMin < vMin) vMin = pnMin
         if (pnMax > vMax) vMax = pnMax
       }
 
-      xScaleBase = d3.scaleTime().domain([minDate, maxDate]).range([0, cW])
-      const p0 = xScaleBase(vMin), p1 = xScaleBase(vMax)
+      xScaleBase = d3
+        .scaleTime()
+        .domain([minDate, maxDate])
+        .range([0, cW])
+      const p0 = xScaleBase(vMin),
+        p1 = xScaleBase(vMax)
       const k = cW / (p1 - p0)
-      currentTransform = d3.zoomIdentity.translate(-p0 * k, 0).scale(k)
+      currentTransform = d3.zoomIdentity
+        .translate(-p0 * k, 0)
+        .scale(k)
       svg.call(zoomBehavior.transform, currentTransform)
     } else {
-      xScaleBase = d3.scaleTime().domain([minDate, maxDate]).range([0, cW])
+      xScaleBase = d3
+        .scaleTime()
+        .domain([minDate, maxDate])
+        .range([0, cW])
     }
 
-    yScaleBase = d3.scaleSymlog().constant(1).domain([0, maxC * 1.18]).range([cH, 0]).nice()
+    yScaleBase = d3
+      .scaleSymlog()
+      .constant(1)
+      .domain([0, maxC * 1.18])
+      .range([cH, 0])
+      .nice()
     return true
   }
 
@@ -165,7 +216,11 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
     if (!yScaleBase) return 0
     const baseY = yScaleBase(p.citations)
     const samePos = localPapers
-      .filter(pp => pp.date === p.date && pp.citations === p.citations)
+      .filter(
+        pp =>
+          pp.date === p.date &&
+          pp.citations === p.citations,
+      )
       .sort((a, b) => a.id.localeCompare(b.id))
 
     if (samePos.length <= 1) return baseY
@@ -177,19 +232,35 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
     if (!xScaleBase || !yScaleBase) return
     const xs = xsc()
 
-    gGrid.call(d3.axisLeft(yScaleBase).ticks(5).tickSize(-cW).tickFormat(() => ''))
-    gGrid.selectAll('line').attr('stroke', '#eef2f7').attr('stroke-dasharray', '3,3')
+    gGrid.call(
+      d3
+        .axisLeft(yScaleBase)
+        .ticks(5)
+        .tickSize(-cW)
+        .tickFormat(() => ''),
+    )
+    gGrid
+      .selectAll('line')
+      .attr('stroke', '#eef2f7')
+      .attr('stroke-dasharray', '3,3')
     gGrid.select('.domain').remove()
 
-    gXAxis.call(d3.axisBottom(xs).ticks(Math.max(3, Math.round(cW / 90))))
+    gXAxis.call(
+      d3
+        .axisBottom(xs)
+        .ticks(Math.max(3, Math.round(cW / 90))),
+    )
     gXAxis.select('.domain').attr('stroke', '#e2e8f0')
     gXAxis.selectAll('line').attr('stroke', '#e2e8f0')
 
     gYAxis.call(
-      d3.axisLeft(yScaleBase).ticks(5).tickFormat((d: d3.NumberValue) => {
-        const val = d as number
-        return val >= 1 ? fmt(val) : val.toString()
-      }),
+      d3
+        .axisLeft(yScaleBase)
+        .ticks(5)
+        .tickFormat((d: d3.NumberValue) => {
+          const val = d as number
+          return val >= 1 ? fmt(val) : val.toString()
+        }),
     )
     gYAxis.select('.domain').attr('stroke', '#e2e8f0')
     gYAxis.selectAll('line').attr('stroke', '#e2e8f0')
@@ -200,9 +271,17 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
         f: localPapers.find(p => p.id === c.fromId),
         t: localPapers.find(p => p.id === c.toId),
       }))
-      .filter((c): c is Connection & { f: Paper; t: Paper } => !!(c.f?.date && c.t?.date))
+      .filter(
+        (c): c is Connection & { f: Paper; t: Paper } =>
+          !!(c.f?.date && c.t?.date),
+      )
 
-    const lines = gLines.selectAll<SVGPathElement, (typeof lineData)[0]>('.rl').data(lineData, d => d.fromId + d.toId)
+    const lines = gLines
+      .selectAll<
+        SVGPathElement,
+        (typeof lineData)[0]
+      >('.rl')
+      .data(lineData, d => d.fromId + d.toId)
 
     const enteredLines = lines
       .enter()
@@ -212,50 +291,79 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
       .attr('fill', 'none')
       .attr('marker-end', 'url(#arrow)')
 
-    enteredLines.transition().duration(500).attr('stroke-opacity', 0.18)
+    enteredLines
+      .transition()
+      .duration(500)
+      .attr('stroke-opacity', 0.18)
 
     lines
       .merge(enteredLines)
       .attr('opacity', d => {
         if (!localHoveredId) return 0.6
-        if (d.fromId === localHoveredId || d.toId === localHoveredId) return 1
+        if (
+          d.fromId === localHoveredId ||
+          d.toId === localHoveredId
+        )
+          return 1
         return 0.1
       })
       .attr('stroke', d => d.f?.color || '#94a3b8')
       .attr('stroke-width', d =>
-        localHoveredId && (d.fromId === localHoveredId || d.toId === localHoveredId) ? 2.5 : 1.5,
+        localHoveredId &&
+        (d.fromId === localHoveredId ||
+          d.toId === localHoveredId)
+          ? 2.5
+          : 1.5,
       )
 
     gLines
-      .selectAll<SVGPathElement, (typeof lineData)[0]>('.rl')
+      .selectAll<
+        SVGPathElement,
+        (typeof lineData)[0]
+      >('.rl')
       .attr('d', d => {
-        const x1 = xs(new Date(d.t.date!)), y1 = getNodeY(d.t), x2 = xs(new Date(d.f.date!)), y2 = getNodeY(d.f)
+        const x1 = xs(new Date(d.t.date!)),
+          y1 = getNodeY(d.t),
+          x2 = xs(new Date(d.f.date!)),
+          y2 = getNodeY(d.f)
         const dx = x2 - x1
         const cp = Math.abs(dx) * 0.45
-        const targetX = x2 + (d.f.id === localSelectedId ? 12 : d.f.isRef ? 7 : 10)
+        const targetX =
+          x2 -
+          (d.f.id === localSelectedId
+            ? 12
+            : d.f.isRef
+              ? 7
+              : 10)
         return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${targetX - cp} ${y2}, ${targetX} ${y2}`
       })
 
     lines.exit().remove()
 
-    const dots = gDots.selectAll<SVGCircleElement, Paper>('.pdot').data(localPapers, (d: Paper) => d.id)
+    const dots = gDots
+      .selectAll<SVGCircleElement, Paper>('.pdot')
+      .data(localPapers, (d: Paper) => d.id)
 
     const entered = dots
       .enter()
       .append('circle')
       .attr('class', 'pdot')
-      .attr('cx', d => (d.date ? xs(new Date(d.date)) : -999))
+      .attr('cx', d =>
+        d.date ? xs(new Date(d.date)) : -999,
+      )
       .attr('cy', d => getNodeY(d))
       .attr('r', 0)
-      .attr('fill', d => d.isRef ? '#64748b' : d.color)
+      .attr('fill', d => (d.isRef ? '#64748b' : d.color))
       .attr('fill-opacity', d => {
         if (localHoveredId) {
           const connected =
             d.id === localHoveredId ||
             localConnections.some(
               c =>
-                (c.fromId === localHoveredId && c.toId === d.id) ||
-                (c.toId === localHoveredId && c.fromId === d.id),
+                (c.fromId === localHoveredId &&
+                  c.toId === d.id) ||
+                (c.toId === localHoveredId &&
+                  c.fromId === d.id),
             )
           return connected ? 1 : 0.1
         }
@@ -282,44 +390,75 @@ export function Graph(svgEl: SVGSVGElement, options: GraphOptions) {
 
     dots
       .merge(entered)
-      .attr('cx', d => (d.date ? xs(new Date(d.date)) : -999))
+      .attr('cx', d =>
+        d.date ? xs(new Date(d.date)) : -999,
+      )
       .attr('cy', d => yScaleBase!(d.citations))
-      .attr('r', d => (d.id === localSelectedId ? 10 : d.isRef ? 5 : 8))
-      .attr('stroke-width', d => (d.id === localSelectedId ? 2.5 : d.isRef ? 1.5 : 2))
-      .attr('fill', d => d.isRef ? '#64748b' : d.color)
+      .attr('r', d =>
+        d.id === localSelectedId ? 10 : d.isRef ? 5 : 8,
+      )
+      .attr('stroke-width', d =>
+        d.id === localSelectedId ? 2.5 : d.isRef ? 1.5 : 2,
+      )
+      .attr('fill', d => (d.isRef ? '#64748b' : d.color))
       .attr('fill-opacity', d => {
         if (localHoveredId) {
           const connected =
             d.id === localHoveredId ||
             localConnections.some(
               c =>
-                (c.fromId === localHoveredId && c.toId === d.id) ||
-                (c.toId === localHoveredId && c.fromId === d.id),
+                (c.fromId === localHoveredId &&
+                  c.toId === d.id) ||
+                (c.toId === localHoveredId &&
+                  c.fromId === d.id),
             )
           return connected ? 1 : 0.1
         }
         return d.isRef ? 0.62 : 0.88
       })
 
-    dots.exit().transition().duration(200).attr('r', 0).remove()
+    dots
+      .exit()
+      .transition()
+      .duration(200)
+      .attr('r', 0)
+      .remove()
   }
 
   function resize() {
-    cW = window.innerWidth - MARGIN.left - MARGIN.right
-    cH = window.innerHeight - MARGIN.top - MARGIN.bottom
-    svg.attr('width', window.innerWidth).attr('height', window.innerHeight)
-    svg.select('rect').attr('width', window.innerWidth).attr('height', window.innerHeight)
+    cW = getW() - MARGIN.left - MARGIN.right
+    cH = getH() - MARGIN.top - MARGIN.bottom
+    svg
+      .attr('width', getW())
+      .attr('height', getH())
+    svg
+      .select('rect')
+      .attr('width', getW())
+      .attr('height', getH())
     gXAxis.attr('transform', `translate(0,${cH})`)
-    svg.select('text[text-anchor="middle"]').attr('x', cW / 2).attr('y', cH + 46)
-    svg.select('clipPath rect').attr('width', cW + 2).attr('height', cH + 2)
+    svg
+      .select('text[text-anchor="middle"]')
+      .attr('x', cW / 2)
+      .attr('y', cH + 46)
+    svg
+      .select('clipPath rect')
+      .attr('width', cW + 2)
+      .attr('height', cH + 2)
     if (localPapers.length && buildScales()) doDraw()
   }
 
   window.addEventListener('resize', resize)
 
   return {
-    update(papers: Paper[], connections: Connection[], selectedId: string | null, hoveredId: string | null) {
-      const addedPapers = papers.filter(p => !lastPaperIds.has(p.id))
+    update(
+      papers: Paper[],
+      connections: Connection[],
+      selectedId: string | null,
+      hoveredId: string | null,
+    ) {
+      const addedPapers = papers.filter(
+        p => !lastPaperIds.has(p.id),
+      )
       lastPaperIds = new Set(papers.map(p => p.id))
 
       localPapers = papers

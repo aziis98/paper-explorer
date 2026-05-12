@@ -1,5 +1,5 @@
 import type { Paper, Connection } from './types'
-import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid, $ } from './utils'
+import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid, $, trunc } from './utils'
 import { fetchReferencedWorkIds, fetchWorksByIds, fetchCitingWorks, searchWorks } from './api'
 
 import { Graph } from './components/Graph'
@@ -7,7 +7,7 @@ import { Tooltip } from './components/Tooltip'
 import { LeftPanel } from './components/LeftPanel'
 import { RightPanel } from './components/RightPanel'
 import { SearchPanel } from './components/SearchPanel'
-import { state } from './store'
+import { state, StoreManager } from './store'
 import { PaperCache } from './PaperCache'
 
 // Global State managed in store.ts
@@ -41,25 +41,94 @@ chartContainer.appendChild(graphEl)
 
 const searchPanelEl = $('div', { id: 'search-container' })
 
-mainEl.append(searchPanelEl, chartContainer)
+mainEl.append(chartContainer)
 
 const workspaceEl = $('div', { id: 'workspace' }, leftPanelEl, mainEl, rightPanelEl)
 
-const navProjects = $('div', { className: 'nav-projects' }, 
-  $('iconify-icon', { icon: 'mdi:folder-outline' }),
-  $('span', {}, 'My Research Project'),
-  $('iconify-icon', { icon: 'mdi:chevron-down' })
+const projectNameInput = $('input', {
+  className: 'project-name-input',
+  value: state.projectName || 'My Research Project',
+  onBlur: (e: Event) => {
+    state.projectName = (e.target as HTMLInputElement).value
+    StoreManager.saveCurrentProject()
+  },
+  onKeyDown: (e: KeyboardEvent) => {
+    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+  }
+}) as HTMLInputElement
+
+const projectDropdownList = $('div', { className: 'project-dropdown' })
+
+function renderProjectDropdown() {
+  projectDropdownList.innerHTML = ''
+  const index = StoreManager.getProjectsIndex()
+  index.sort((a, b) => b.lastModified - a.lastModified)
+  
+  index.forEach(p => {
+    projectDropdownList.append(
+      $('div', { 
+        className: 'project-item',
+        onClick: () => {
+          StoreManager.loadProject(p.id)
+          projectDropdownList.classList.remove('open')
+          projectNameInput.value = state.projectName
+          updateAll()
+        }
+      }, 
+        $('span', { className: 'project-item-name' }, p.name),
+        $('span', { className: 'project-item-date' }, new Date(p.lastModified).toLocaleString())
+      )
+    )
+  })
+
+  projectDropdownList.append(
+    $('div', { 
+      className: 'new-project-btn',
+      onClick: () => {
+        StoreManager.createNewProject()
+        projectDropdownList.classList.remove('open')
+        projectNameInput.value = state.projectName
+        updateAll()
+        projectNameInput.focus()
+      }
+    }, $('iconify-icon', { icon: 'mdi:plus' }), 'New Project')
+  )
+}
+
+const navProjectsContainer = $('div', { className: 'nav-projects-container' },
+  $('div', { 
+    className: 'nav-projects',
+    onClick: (e: Event) => {
+      // Don't toggle dropdown if clicking the input
+      if (e.target === projectNameInput) return
+      renderProjectDropdown()
+      projectDropdownList.classList.toggle('open')
+    }
+  }, 
+    $('iconify-icon', { icon: 'mdi:folder-outline' }),
+    projectNameInput,
+    $('iconify-icon', { icon: 'mdi:chevron-down' })
+  ),
+  projectDropdownList
 )
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (!navProjectsContainer.contains(e.target as Node)) {
+    projectDropdownList.classList.remove('open')
+  }
+})
 
 const navLeftToggle = createNavToggle('mdi:format-list-bulleted', leftPanelEl)
 const navRightToggle = createNavToggle('mdi:information-outline', rightPanelEl, true)
 
 const navbarEl = $('div', { id: 'navbar' },
-  $('div', { style: 'display: flex; gap: 8px; align-items: center' },
+  $('div', { style: 'display: flex; gap: 8px; align-items: center; width: 33%' },
     navLeftToggle,
-    navProjects
+    navProjectsContainer
   ),
-  $('div', { style: 'display: flex; gap: 8px; align-items: center' },
+  searchPanelEl,
+  $('div', { style: 'display: flex; gap: 8px; align-items: center; width: 33%; justify-content: flex-end' },
     navRightToggle
   )
 )
@@ -206,6 +275,31 @@ const searchPanel = SearchPanel(searchPanelEl, {
     updateAll()
     searchPanel.showResults(state.lastSearchResults, new Set(state.papers.map(p => p.id)))
   },
+  onAddResultNewGraph: w => {
+    StoreManager.createNewProject(trunc(w.title || 'Untitled', 30))
+    projectNameInput.value = state.projectName
+    
+    state.papers.push({
+      id: w.id,
+      title: w.title || 'Untitled',
+      year: getMinYear(w),
+      date: getMinDate(w),
+      pubDate: formatDate(w.publication_date),
+      createdDate: formatDate(w.created_date),
+      citations: w.cited_by_count || 0,
+      authors: getAuthors(w),
+      color: getColor(0),
+      doi: w.doi,
+      arxivUrl: getArXivUrl(w),
+      pdfUrl: getPdfUrl(w),
+      isRef: false,
+      parentId: null,
+      refsLoaded: false,
+      referencedWorks: w.referenced_works || null,
+    })
+    updateAll()
+    searchPanel.hideResults()
+  }
 })
 
 // Orchestration Logic
@@ -234,6 +328,7 @@ function updateAll() {
   graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
   leftPanel.update(state.papers, state.selectedId)
   updateRightPanelData()
+  StoreManager.saveCurrentProject()
 }
 
 function updateRightPanelData() {
@@ -398,4 +493,6 @@ async function loadCitationsForPaper(paper: Paper, limit?: number) {
 }
 
 // Initial draw wrapper
+StoreManager.loadState()
+projectNameInput.value = state.projectName
 updateAll()

@@ -47,6 +47,7 @@
     padding: 0 16px;
     z-index: 2000;
     box-shadow: var(--shadow-sm);
+    position: relative; /* For absolutely positioned search bar */
   }
 
   #workspace {
@@ -163,15 +164,105 @@
   /* Search Panel */
   #search-container {
     position: absolute;
-    top: 20px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000; /* Above sidebars and main content */
+    transform: translate(-50%, -50%);
+    z-index: 1000;
     width: 400px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+  }
+
+  #results-drop {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    margin-top: 4px;
     background: white;
     border-radius: 12px;
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-color);
+    z-index: 2000;
+  }
+
+  /* Projects UI */
+  .nav-projects-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .project-name-input {
+    background: transparent;
+    border: 1px solid transparent;
+    outline: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: inherit;
+    width: 180px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  .project-name-input:focus {
+    border-color: var(--accent-color);
+    background: white;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+  }
+
+  .project-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    width: 250px;
+    display: none;
+    flex-direction: column;
+    z-index: 3000;
+    overflow: hidden;
+  }
+  .project-dropdown.open {
+    display: flex;
+  }
+  .project-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .project-item:hover {
+    background: #f8fafc;
+  }
+  .project-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .project-item-date {
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+  .new-project-btn {
+    padding: 10px 16px;
+    color: var(--accent-color);
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .new-project-btn:hover {
+    background: rgba(0, 212, 255, 0.05);
   }
 
   /* Tooltip */

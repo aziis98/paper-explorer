@@ -3,6 +3,7 @@ import { $, trunc, fmt, getAuthors, getMinYear } from '../utils'
 export interface SearchPanelOptions {
   onSearch: (query: string) => void
   onAddResult: (result: any) => void
+  onAddResultNewGraph: (result: any) => void
 }
 
 export function SearchPanel(el: HTMLElement, options: SearchPanelOptions) {
@@ -138,24 +139,57 @@ export function SearchPanel(el: HTMLElement, options: SearchPanelOptions) {
                   fontWeight: '500',
                   color: '#1e293b',
                   lineHeight: '1.4',
-                  flex: '1',
-                },
+                flex: '1',
               },
-              trunc(w.title || 'Untitled', 88),
-            ),
-             $(
-              'span',
+            },
+            trunc(w.title || 'Untitled', 88),
+          ),
+          $(
+            'div',
+            { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+            $(
+              'button',
               {
                 style: {
                   fontSize: '11px',
                   fontWeight: '600',
                   color: added ? '#94a3b8' : '#6366f1',
-                  flexShrink: '0',
+                  background: 'none',
+                  border: 'none',
+                  cursor: added ? 'default' : 'pointer',
+                  padding: '2px 4px',
                 },
+                onClick: (e: Event) => {
+                  e.stopPropagation() // Prevent triggering the item's main onClick
+                  if (!added) options.onAddResult(w)
+                }
               },
               added ? 'Added' : '+ Add',
             ),
-          ),
+            $(
+              'button',
+              {
+                title: 'Add to new project',
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                },
+                onClick: (e: Event) => {
+                  e.stopPropagation()
+                  options.onAddResultNewGraph(w)
+                }
+              },
+              $('iconify-icon', { icon: 'mdi:folder-plus-outline', style: { fontSize: '14px' } })
+            )
+          )
+        ),
+
           $(
             'p',
             {

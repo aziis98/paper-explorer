@@ -55,12 +55,12 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
       if (!list) return
       list.innerHTML = ''
 
-      sorted.forEach(p => {
-        const isMain = !p.isRef
+      const createItem = (p: Paper, isMain: boolean) => {
         const isSelected = p.id === selectedId
-        const item = $(
+        return $(
           'div',
           {
+            title: isMain ? '' : 'Click to make this a primary node',
             style: {
               display: 'flex',
               alignItems: 'flex-start',
@@ -70,19 +70,19 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
               cursor: 'pointer',
               transition: 'all 0.15s ease',
               background: isSelected ? '#e2e8f0' : 'transparent',
+              opacity: isMain ? '1' : '0.5',
             },
             onMouseEnter: (e: MouseEvent) => {
-              if (p.id !== selectedId) {
+              if (!isSelected) {
                 ;(e.currentTarget as HTMLElement).style.background = '#f1f5f9'
               }
             },
             onMouseLeave: (e: MouseEvent) => {
-              if (p.id !== selectedId) {
+              if (!isSelected) {
                 ;(e.currentTarget as HTMLElement).style.background = 'transparent'
               }
             },
             onClick: () => options.onPaperClick(p),
-            opacity: isMain ? '1' : '0.5',
           },
           $('span', {
             style: {
@@ -154,8 +154,39 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
             '✕',
           ),
         )
-        list.appendChild(item)
-      })
+      }
+
+      if (direct.length > 0) {
+        list.appendChild(
+          $('div', {
+            style: {
+              fontSize: '11px',
+              fontWeight: '700',
+              color: '#64748b',
+              textTransform: 'uppercase',
+              padding: '12px 8px 6px',
+              letterSpacing: '0.05em',
+            },
+          }, 'Primary Papers')
+        )
+        direct.forEach(p => list.appendChild(createItem(p, true)))
+      }
+
+      if (secondary.length > 0) {
+        list.appendChild(
+          $('div', {
+            style: {
+              fontSize: '11px',
+              fontWeight: '700',
+              color: '#64748b',
+              textTransform: 'uppercase',
+              padding: '16px 8px 6px',
+              letterSpacing: '0.05em',
+            },
+          }, 'Secondary Papers')
+        )
+        secondary.forEach(p => list.appendChild(createItem(p, false)))
+      }
     },
     unmount() {
       el.removeEventListener('mousedown', mousedownHandler)
