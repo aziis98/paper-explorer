@@ -123,3 +123,15 @@ export function downloadBlob(content: string, filename: string, contentType: str
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export function extractDOIs(text: string): string[] {
+  // Matches DOIs starting with 10. (e.g. 10.1038/s41586-020-2649-2)
+  const regex = /10\.\d{4,9}\/[-._;()/:A-Z0-9]+/gi
+  const matches = text.match(regex) || []
+  
+  // Remove trailing punctuation that might be caught (like period or comma at the end of a sentence)
+  const cleaned = matches.map(doi => doi.replace(/[.,;:]$/, ''))
+  
+  // Return unique DOIs in lowercase
+  return [...new Set(cleaned.map(doi => doi.toLowerCase()))]
+}

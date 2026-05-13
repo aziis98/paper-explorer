@@ -332,7 +332,7 @@ export function Graph(
           x2 -
           (d.f.id === localSelectedId
             ? 12
-            : d.f.isRef
+            : d.f.isSecondary
               ? 7
               : 10)
         return `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${targetX - cp} ${y2}, ${targetX} ${y2}`
@@ -353,7 +353,7 @@ export function Graph(
       )
       .attr('cy', d => getNodeY(d))
       .attr('r', 0)
-      .attr('fill', d => (d.isRef ? '#64748b' : d.color))
+      .attr('fill', d => (d.isSecondary ? '#64748b' : d.color))
       .attr('fill-opacity', d => {
         if (localHoveredId) {
           const connected =
@@ -367,10 +367,10 @@ export function Graph(
             )
           return connected ? 1 : 0.1
         }
-        return d.isRef ? 0.62 : 0.88
+        return d.isSecondary ? 0.62 : 0.88
       })
       .attr('stroke', '#fff')
-      .attr('stroke-width', d => (d.isRef ? 1.5 : 2))
+      .attr('stroke-width', d => (d.isSecondary ? 1.5 : 2))
       .on('mousemove', (ev: MouseEvent, d: Paper) => {
         options.onHover(d, ev)
       })
@@ -386,7 +386,7 @@ export function Graph(
       .transition()
       .duration(380)
       .ease(d3.easeBounceOut)
-      .attr('r', d => (d.isRef ? 5 : 8))
+      .attr('r', d => (d.isSecondary ? 5 : 8))
 
     dots
       .merge(entered)
@@ -395,12 +395,12 @@ export function Graph(
       )
       .attr('cy', d => yScaleBase!(d.citations))
       .attr('r', d =>
-        d.id === localSelectedId ? 10 : d.isRef ? 5 : 8,
+        d.id === localSelectedId ? 10 : d.isSecondary ? 5 : 8,
       )
       .attr('stroke-width', d =>
-        d.id === localSelectedId ? 2.5 : d.isRef ? 1.5 : 2,
+        d.id === localSelectedId ? 2.5 : d.isSecondary ? 1.5 : 2,
       )
-      .attr('fill', d => (d.isRef ? '#64748b' : d.color))
+      .attr('fill', d => (d.isSecondary ? '#64748b' : d.color))
       .attr('fill-opacity', d => {
         if (localHoveredId) {
           const connected =
@@ -414,7 +414,7 @@ export function Graph(
             )
           return connected ? 1 : 0.1
         }
-        return d.isRef ? 0.62 : 0.88
+        return d.isSecondary ? 0.62 : 0.88
       })
 
     dots

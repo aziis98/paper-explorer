@@ -25,6 +25,26 @@ export async function fetchWorksByIds(ids: string[], limit?: number) {
   return d.results || []
 }
 
+export async function fetchWorksByDOIs(dois: string[]) {
+  if (!dois || dois.length === 0) return []
+  const results: any[] = []
+  // Chunk DOIs into groups of 50 to respect API limits
+  for (let i = 0; i < dois.length; i += 50) {
+    const chunk = dois.slice(i, i + 50)
+    const url = new URL('/works', OPENALEX_API)
+    url.searchParams.set('filter', 'doi:' + chunk.join('|'))
+    url.searchParams.set('per_page', '50')
+    url.searchParams.set(
+      'select',
+      'id,title,publication_year,publication_date,created_date,cited_by_count,authorships,doi,referenced_works,locations,primary_location',
+    )
+    const r = await fetch(url)
+    const d = await r.json()
+    if (d.results) results.push(...d.results)
+  }
+  return results
+}
+
 export async function fetchCitingWorks(paperId: string) {
   const url = new URL('/works', OPENALEX_API)
   url.searchParams.set('filter', `cites:${sid(paperId)}`)

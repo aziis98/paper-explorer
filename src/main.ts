@@ -11,12 +11,14 @@ import {
   trunc,
   generateBibtex,
   downloadBlob,
+  extractDOIs,
 } from './utils'
 import {
   fetchReferencedWorkIds,
   fetchWorksByIds,
   fetchCitingWorks,
   searchWorks,
+  fetchWorksByDOIs,
 } from './api'
 
 import { Graph } from './components/Graph'
@@ -24,6 +26,7 @@ import { Tooltip } from './components/Tooltip'
 import { LeftPanel } from './components/LeftPanel'
 import { RightPanel } from './components/RightPanel'
 import { SearchPanel } from './components/SearchPanel'
+import { ImportModal } from './components/ImportModal'
 import { state, StoreManager } from './store'
 import { PaperCache } from './PaperCache'
 
@@ -256,8 +259,8 @@ const graph = Graph(graphEl, {
 
 const leftPanel = LeftPanel(leftPanelEl, {
   onPaperClick: paper => {
-    if (paper.isRef) {
-      paper.isRef = false
+    if (paper.isSecondary) {
+      paper.isSecondary = false
     }
     state.selectedId = paper.id
     updateAll()
@@ -280,7 +283,7 @@ const leftPanel = LeftPanel(leftPanelEl, {
   onExport: type => {
     const toExport =
       type === 'primary'
-        ? state.papers.filter(p => !p.isRef)
+        ? state.papers.filter(p => !p.isSecondary)
         : state.papers
     if (!toExport.length) return
     const bibtex = generateBibtex(toExport)
@@ -289,6 +292,82 @@ const leftPanel = LeftPanel(leftPanelEl, {
       `${state.projectName.toLowerCase().replace(/\s+/g, '-')}_${type}.bib`,
       'text/plain',
     )
+  },
+  onImport: () => {
+    const modal = ImportModal({
+      onImport: async (text) => {
+        const dois = extractDOIs(text)
+        if (!dois.length) {
+          alert('No valid DOIs found in the provided text.')
+          return
+        }
+        
+        // Find DOIs we don't already have
+        const existingDois = new Set(state.papers.map(p => p.doi?.toLowerCase()).filter(Boolean))
+        const newDois = dois.filter(doi => !existingDois.has(doi.toLowerCase()))
+        
+        if (!newDois.length) {
+          alert('All found DOIs are already in the graph.')
+          return
+        }
+
+        const importBtn = document.getElementById('import-btn') as HTMLElement
+        if (importBtn) {
+          importBtn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> Importing...'
+          importBtn.style.pointerEvents = 'none'
+        }
+
+        try {
+          const results = await fetchWorksByDOIs(newDois)
+          if (!results.length) {
+            alert('No papers found for the provided DOIs.')
+            return
+          }
+
+          results.forEach((w: any) => {
+            // Double check by ID
+            if (state.papers.some(p => p.id === w.id)) return
+            
+            state.papers.push({
+              id: w.id,
+              title: w.title || 'Untitled',
+              year: getMinYear(w),
+              date: getMinDate(w),
+              pubDate: formatDate(w.publication_date),
+              createdDate: formatDate(w.created_date),
+              citations: w.cited_by_count || 0,
+              authors: getAuthors(w),
+              color: '#00d4ff',
+              doi: w.doi,
+              arxivUrl: getArXivUrl(w),
+              pdfUrl: getPdfUrl(w),
+              isSecondary: false,
+              parentId: null,
+              refsLoaded: false,
+              referencedWorks: w.referenced_works || null,
+            })
+          })
+
+          updateAll()
+        } catch (e) {
+          console.error(e)
+          alert('Failed to import papers. Please try again.')
+        } finally {
+          if (importBtn) {
+            importBtn.innerHTML = '<iconify-icon icon="mdi:upload"></iconify-icon> Import Papers'
+            importBtn.style.pointerEvents = 'auto'
+          }
+        }
+      }
+    })
+    modal.show()
+  },
+  onMakeSecondary: id => {
+    const paper = state.papers.find(p => p.id === id)
+    if (paper) {
+      paper.isSecondary = true
+      updateAll()
+    }
   },
 })
 
@@ -318,7 +397,7 @@ const rightPanel = RightPanel(rightPanelEl, {
         doi: w.doi,
         arxivUrl: getArXivUrl(w),
         pdfUrl: getPdfUrl(w),
-        isRef: true,
+        isSecondary: true,
         parentId: state.selectedId,
         refsLoaded: false,
         referencedWorks: w.referenced_works || null,
@@ -387,7 +466,7 @@ const searchPanel = SearchPanel(searchPanelEl, {
       doi: w.doi,
       arxivUrl: getArXivUrl(w),
       pdfUrl: getPdfUrl(w),
-      isRef: false,
+      isSecondary: false,
       parentId: null,
       refsLoaded: false,
       referencedWorks: w.referenced_works || null,
@@ -417,7 +496,7 @@ const searchPanel = SearchPanel(searchPanelEl, {
       doi: w.doi,
       arxivUrl: getArXivUrl(w),
       pdfUrl: getPdfUrl(w),
-      isRef: false,
+      isSecondary: false,
       parentId: null,
       refsLoaded: false,
       referencedWorks: w.referenced_works || null,
@@ -601,7 +680,7 @@ async function loadRefsForPaper(
           doi: w.doi,
           arxivUrl: getArXivUrl(w),
           pdfUrl: getPdfUrl(w),
-          isRef: true,
+          isSecondary: true,
           parentId: paper.id,
           refsLoaded: false,
           referencedWorks: w.referenced_works || null,
@@ -653,7 +732,7 @@ async function loadCitationsForPaper(
         doi: w.doi,
         arxivUrl: getArXivUrl(w),
         pdfUrl: getPdfUrl(w),
-        isRef: true,
+        isSecondary: true,
         parentId: paper.id,
         refsLoaded: false,
         referencedWorks: w.referenced_works || null,

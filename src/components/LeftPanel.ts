@@ -5,6 +5,8 @@ export interface LeftPanelOptions {
   onPaperClick: (paper: Paper) => void
   onRemovePaper: (id: string) => void
   onExport: (type: 'primary' | 'all') => void
+  onImport: () => void
+  onMakeSecondary: (id: string) => void
 }
 
 export function LeftPanel(
@@ -31,20 +33,38 @@ export function LeftPanel(
       $(
         'button',
         {
+          id: 'import-btn',
+          className: 'export-btn',
+          style: { background: 'white' },
+          onClick: () => options.onImport(),
+          title: 'Import papers via .bib or DOIs',
+        },
+        $('iconify-icon', { icon: 'mdi:upload' }),
+        'Import Papers',
+      ),
+    ),
+    $(
+      'div',
+      { className: 'sidebar-header-actions' },
+      $(
+        'button',
+        {
           className: 'export-btn',
           onClick: () => options.onExport('primary'),
+          title: 'Export Primary .bib',
         },
         $('iconify-icon', { icon: 'mdi:download' }),
-        'Primary .bib',
+        'Primary',
       ),
       $(
         'button',
         {
           className: 'export-btn',
           onClick: () => options.onExport('all'),
+          title: 'Export All .bib',
         },
-        $('iconify-icon', { icon: 'mdi:download' }),
-        'All .bib',
+        $('iconify-icon', { icon: 'mdi:download-multiple' }),
+        'All',
       ),
       $(
         'div',
@@ -165,8 +185,8 @@ export function LeftPanel(
 
   return {
     update(papers: Paper[], selectedId: string | null) {
-      const direct = papers.filter(p => !p.isRef)
-      const secondary = papers.filter(p => p.isRef)
+      const direct = papers.filter(p => !p.isSecondary)
+      const secondary = papers.filter(p => p.isSecondary)
 
       if (emptyMsg) {
         emptyMsg.style.display = direct.length
@@ -198,9 +218,9 @@ export function LeftPanel(
             onClick: () => options.onPaperClick(p),
           },
           $('span', {
-            className: `left-panel-item-dot ${p.isRef ? 'ref' : ''}`,
+            className: `left-panel-item-dot ${p.isSecondary ? 'ref' : ''}`,
             style: {
-              background: p.isRef ? '#64748b' : p.color,
+              background: p.isSecondary ? '#64748b' : p.color,
             },
           }),
           $(
@@ -209,7 +229,7 @@ export function LeftPanel(
             $(
               'p',
               {
-                className: `left-panel-item-title ${p.isRef ? 'ref' : ''}`,
+                className: `left-panel-item-title ${p.isSecondary ? 'ref' : ''}`,
               },
               trunc(p.title, 58),
             ),
@@ -225,16 +245,37 @@ export function LeftPanel(
             ),
           ),
           $(
-            'button',
-            {
-              className: 'left-panel-remove-btn',
-              title: 'Remove paper from graph',
-              onClick: (e: Event) => {
-                e.stopPropagation()
-                options.onRemovePaper(p.id)
+            'div',
+            { className: 'left-panel-item-actions' },
+            $(
+              'button',
+              {
+                className: 'left-panel-action-btn remove',
+                title: 'Remove paper from graph',
+                onClick: (e: Event) => {
+                  e.stopPropagation()
+                  options.onRemovePaper(p.id)
+                },
               },
-            },
-            $('iconify-icon', { icon: 'mdi:close' }),
+              $('iconify-icon', { icon: 'mdi:close' }),
+            ),
+            !p.isSecondary
+              ? $(
+                  'button',
+                  {
+                    className: 'left-panel-action-btn secondary',
+                    title: 'Move to secondary papers',
+                    onClick: (e: Event) => {
+                      e.stopPropagation()
+                      options.onMakeSecondary(p.id)
+                    },
+                  },
+                  $(
+                    'iconify-icon',
+                    { icon: 'mdi:bookmark-off-outline' },
+                  ),
+                )
+              : null,
           ),
         )
       }
