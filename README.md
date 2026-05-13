@@ -6,16 +6,17 @@ A minimal, high-performance research paper exploration tool. Visualize citation 
 
 <br>
 
-![Screenshot](docs/screenshot-1.png)
+![Screenshot](docs/screenshot-2.png)
 
 ## Features
 
-- **Interactive Citation Graph**: Visualize the relationships between papers across a timeline with citation counts on a log scale.
-- **Smart Focus**: Hover over any paper to highlight its direct connectivity and dim the noise.
-- **Real-time Discovery**: Instant search via OpenAlex API with support for references and citation expansion.
-- **ArXiv Integration**: Direct links to ArXiv PDFs and landing pages whenever available.
-- **Efficient Workflow**: Manage your exploration by promoting secondary discoveries to your main workspace.
-- **Modern Aesthetics**: A clean, neo-brutalist inspired UI with a focus on typography and clear data hierarchy.
+- **Interactive Citation Graph**: Visualize research relationships across a timeline with citation counts mapped to a responsive vertical scale.
+- **Real-time Discovery**: Instant search and expansion of references or citations via the OpenAlex API.
+- **Flexible Import**: Scrape DOIs from `.bib` files or raw text lists using a robust, regex-based extraction engine.
+- **Professional Export**: Generate clean, standardized BibTeX files compatible with Zotero, Mendeley, and LaTeX.
+- **Smart Hierarchy**: Manage your workspace by promoting secondary discoveries to primary nodes or demoting papers to reduce noise.
+- **Direct Access**: Quick links to ArXiv PDFs and OpenAlex landing pages integrated directly into the sidebar.
+- **Modern Performance**: A lightweight, neo-brutalist UI built for speed and clarity.
 
 ## Getting Started
 

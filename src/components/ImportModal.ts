@@ -5,7 +5,6 @@ export interface ImportModalOptions {
 }
 
 export function ImportModal(options: ImportModalOptions) {
-  let activeTab: 'upload' | 'paste' = 'upload'
   let pastedText = ''
 
   const overlay = $('div', { className: 'modal-overlay' })
@@ -153,7 +152,6 @@ export function ImportModal(options: ImportModalOptions) {
   overlay.appendChild(fileInput)
 
   function setTab(tab: 'upload' | 'paste') {
-    activeTab = tab
     if (tab === 'upload') {
       tabUpload.classList.add('active')
       tabPaste.classList.remove('active')
