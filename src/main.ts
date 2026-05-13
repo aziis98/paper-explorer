@@ -12,6 +12,7 @@ import {
   generateBibtex,
   downloadBlob,
   extractDOIs,
+  extractBibtexTitles,
 } from './utils'
 import {
   fetchReferencedWorkIds,
@@ -19,6 +20,8 @@ import {
   fetchCitingWorks,
   searchWorks,
   fetchWorksByDOIs,
+  searchDOIByTitleOA,
+  searchDOIByTitleSS,
 } from './api'
 
 import { Graph } from './components/Graph'
@@ -312,29 +315,67 @@ const leftPanel = LeftPanel(leftPanelEl, {
   },
   onImport: () => {
     const modal = ImportModal({
-      onImport: async (text) => {
+      onImport: async (text, backend) => {
         const dois = extractDOIs(text)
-        if (!dois.length) {
-          alert('No valid DOIs found in the provided text.')
-          return
-        }
-        
-        // Find DOIs we don't already have
-        const existingDois = new Set(state.papers.map(p => p.doi?.toLowerCase()).filter(Boolean))
-        const newDois = dois.filter(doi => !existingDois.has(doi.toLowerCase()))
-        
-        if (!newDois.length) {
-          alert('All found DOIs are already in the graph.')
+        const titles = extractBibtexTitles(text)
+
+        if (!dois.length && !titles.length) {
+          alert('No valid DOIs or BibTeX titles found in the provided text.')
           return
         }
 
         const importBtn = document.getElementById('import-btn') as HTMLElement
+        const cancelBtn = document.getElementById('cancel-import-btn') as HTMLElement
+        let isCancelled = false
+
         if (importBtn) {
           importBtn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> Importing...'
           importBtn.style.pointerEvents = 'none'
         }
+        
+        if (cancelBtn) {
+          cancelBtn.style.display = 'flex'
+          cancelBtn.onclick = () => { isCancelled = true }
+        }
 
         try {
+          if (titles.length) {
+            const titleDois: (string | null)[] = []
+            const resolver = backend === 'oa' ? searchDOIByTitleOA : searchDOIByTitleSS
+
+            for (let i = 0; i < titles.length; i++) {
+              if (isCancelled) break
+              if (importBtn) {
+                const backendName = backend === 'oa' ? 'OpenAlex' : 'SemScholar'
+                importBtn.innerHTML = `<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> [${backendName}] Resolving (${i + 1}/${titles.length})...`
+              }
+              const doi = await resolver(titles[i])
+              titleDois.push(doi)
+              await new Promise(resolve => setTimeout(resolve, backend === 'oa' ? 100 : 200)) 
+            }
+            if (isCancelled) {
+              alert('Import cancelled.')
+              return
+            }
+            titleDois.forEach(doi => {
+              if (doi) dois.push(doi)
+            })
+          }
+
+          if (isCancelled) return
+
+          if (importBtn) {
+            importBtn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> Fetching paper data...'
+          }
+
+          // Find DOIs we don't already have
+          const existingDois = new Set(state.papers.map(p => p.doi?.toLowerCase()).filter(Boolean))
+          const newDois = dois.filter(doi => !existingDois.has(doi.toLowerCase()))
+          
+          if (!newDois.length) {
+            alert('All found DOIs are already in the graph.')
+            return
+          }
           const results = await fetchWorksByDOIs(newDois)
           if (!results.length) {
             alert('No papers found for the provided DOIs.')
@@ -374,6 +415,9 @@ const leftPanel = LeftPanel(leftPanelEl, {
             importBtn.innerHTML = '<iconify-icon icon="mdi:upload"></iconify-icon> Import Papers'
             importBtn.style.pointerEvents = 'auto'
           }
+          if (cancelBtn) {
+            cancelBtn.style.display = 'none'
+          }
         }
       }
     })
@@ -385,6 +429,23 @@ const leftPanel = LeftPanel(leftPanelEl, {
       paper.isSecondary = true
       updateAll()
     }
+  },
+  onRemoveAllPapers: type => {
+    const isRemoveSecondary = type === 'secondary'
+    const toRemove = state.papers.filter(p => p.isSecondary === isRemoveSecondary)
+    const idsToRemove = new Set(toRemove.map(p => p.id))
+    
+    state.papers = state.papers.filter(p => !idsToRemove.has(p.id))
+    state.connections = state.connections.filter(
+      c => !idsToRemove.has(c.fromId) && !idsToRemove.has(c.toId)
+    )
+    
+    if (state.selectedId && idsToRemove.has(state.selectedId)) {
+      state.selectedId = null
+      rightPanelEl.classList.add('collapsed')
+      navRightToggle.classList.remove('active')
+    }
+    updateAll()
   },
 })
 

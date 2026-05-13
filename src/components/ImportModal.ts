@@ -1,11 +1,12 @@
 import { $ } from '../utils'
 
 export interface ImportModalOptions {
-  onImport: (text: string) => void
+  onImport: (text: string, backend: 'oa' | 'ss') => void
 }
 
 export function ImportModal(options: ImportModalOptions) {
   let pastedText = ''
+  let selectedBackend: 'oa' | 'ss' = 'oa'
 
   const overlay = $('div', { className: 'modal-overlay' })
 
@@ -55,7 +56,7 @@ export function ImportModal(options: ImportModalOptions) {
     if (!file) return
     const text = await file.text()
     close()
-    options.onImport(text)
+    options.onImport(text, selectedBackend)
   }
 
   const uploadArea = $(
@@ -76,7 +77,7 @@ export function ImportModal(options: ImportModalOptions) {
         if (!file) return
         const text = await file.text()
         close()
-        options.onImport(text)
+        options.onImport(text, selectedBackend)
       },
     },
     $('iconify-icon', {
@@ -124,7 +125,7 @@ export function ImportModal(options: ImportModalOptions) {
       onClick: () => {
         if (pastedText.trim()) {
           close()
-          options.onImport(pastedText)
+          options.onImport(pastedText, selectedBackend)
         }
       },
     },
@@ -132,9 +133,27 @@ export function ImportModal(options: ImportModalOptions) {
     'Import',
   ) as HTMLButtonElement
 
+  const backendSelect = $(
+    'select',
+    {
+      className: 'modal-select',
+      onChange: (e: Event) => {
+        selectedBackend = (e.target as HTMLSelectElement)
+          .value as 'oa' | 'ss'
+      },
+    },
+    $('option', { value: 'oa' }, 'OpenAlex Resolver'),
+    $(
+      'option',
+      { value: 'ss' },
+      'Semantic Scholar Resolver',
+    ),
+  )
+
   const footer = $(
     'div',
     { className: 'modal-footer' },
+    backendSelect,
     btnCancel,
     btnImport,
   )

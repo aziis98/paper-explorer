@@ -71,3 +71,70 @@ export async function searchWorks(query: string) {
   const d = await r.json()
   return d.results || []
 }
+
+export async function searchDOIByTitleSS(title: string): Promise<string | null> {
+  const url = new URL('https://api.semanticscholar.org/graph/v1/paper/search')
+  url.searchParams.set('query', title)
+  url.searchParams.set('fields', 'externalIds')
+  url.searchParams.set('limit', '1')
+
+  const MAX_ATTEMPTS = 4
+  const MAX_BACKOFF_MS = 4000
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      const r = await fetch(url)
+      
+      if (r.ok) {
+        const d = await r.json()
+        if (d.data && d.data.length > 0 && d.data[0].externalIds?.DOI) {
+          return d.data[0].externalIds.DOI
+        }
+        return null
+      }
+      
+      const retryable = r.status === 429 || r.status === 503
+      if (!retryable || attempt === MAX_ATTEMPTS - 1) {
+        break
+      }
+      
+      const retryAfterStr = r.headers.get('retry-after')
+      let retryAfterMs = null
+      if (retryAfterStr) {
+        const seconds = Number(retryAfterStr)
+        if (Number.isFinite(seconds) && seconds >= 0) {
+          retryAfterMs = Math.min(seconds * 1000, MAX_BACKOFF_MS)
+        }
+      }
+      const backoff = retryAfterMs ?? Math.min(1000 * Math.pow(2, attempt), MAX_BACKOFF_MS)
+      await new Promise(resolve => setTimeout(resolve, backoff))
+    } catch (e) {
+      // In browser, rate limits (429) might come without CORS headers, throwing TypeError
+      if (attempt < MAX_ATTEMPTS - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+      } else {
+        console.error('Semantic Scholar API error:', e)
+      }
+    }
+  }
+  return null
+}
+
+export async function searchDOIByTitleOA(title: string): Promise<string | null> {
+  const url = new URL('/works', OPENALEX_API)
+  url.searchParams.set('filter', `title.search:${title}`)
+  url.searchParams.set('per_page', '1')
+  url.searchParams.set('select', 'doi')
+  try {
+    const r = await fetch(url)
+    if (r.ok) {
+      const d = await r.json()
+      if (d.results && d.results.length > 0 && d.results[0].doi) {
+        return d.results[0].doi
+      }
+    }
+  } catch (e) {
+    console.error('OpenAlex API error:', e)
+  }
+  return null
+}

@@ -135,3 +135,16 @@ export function extractDOIs(text: string): string[] {
   // Return unique DOIs in lowercase
   return [...new Set(cleaned.map(doi => doi.toLowerCase()))]
 }
+
+export function extractBibtexTitles(text: string): string[] {
+  const regex = /\btitle\s*=\s*(?:\{([^}]*)\}|"([^"]*)")/gi
+  let match;
+  const titles: string[] = []
+  while ((match = regex.exec(text)) !== null) {
+    const title = match[1] || match[2]
+    if (title) {
+      titles.push(title.replace(/\s+/g, ' ').replace(/[{}]/g, '').trim())
+    }
+  }
+  return [...new Set(titles)]
+}

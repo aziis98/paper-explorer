@@ -7,6 +7,7 @@ export interface LeftPanelOptions {
   onExport: (type: 'primary' | 'all') => void
   onImport: () => void
   onMakeSecondary: (id: string) => void
+  onRemoveAllPapers: (type: 'primary' | 'secondary') => void
 }
 
 export function LeftPanel(
@@ -42,6 +43,16 @@ export function LeftPanel(
         $('iconify-icon', { icon: 'mdi:upload' }),
         'Import Papers',
       ),
+      $(
+        'button',
+        {
+          id: 'cancel-import-btn',
+          className: 'export-btn',
+          style: { display: 'none', background: '#fee2e2', color: '#dc2626' },
+          title: 'Cancel Import',
+        },
+        $('iconify-icon', { icon: 'mdi:close' }),
+      )
     ),
     $(
       'div',
@@ -288,6 +299,20 @@ export function LeftPanel(
               className: 'left-panel-section-title',
             },
             'PRIMARY PAPERS',
+            $(
+              'button',
+              {
+                className: 'left-panel-action-btn remove-all',
+                title: 'Remove all primary papers',
+                onClick: (e: Event) => {
+                  e.stopPropagation()
+                  if (confirm('Are you sure you want to remove ALL primary papers from the graph?')) {
+                    options.onRemoveAllPapers('primary')
+                  }
+                },
+              },
+              $('iconify-icon', { icon: 'mdi:delete-outline' }),
+            )
           ),
         )
         direct.forEach(p =>
@@ -303,6 +328,20 @@ export function LeftPanel(
               className: 'left-panel-section-title',
             },
             'SECONDARY PAPERS',
+            $(
+              'button',
+              {
+                className: 'left-panel-action-btn remove-all',
+                title: 'Remove all secondary papers',
+                onClick: (e: Event) => {
+                  e.stopPropagation()
+                  if (confirm('Are you sure you want to remove ALL secondary papers from the graph?')) {
+                    options.onRemoveAllPapers('secondary')
+                  }
+                },
+              },
+              $('iconify-icon', { icon: 'mdi:delete-outline' }),
+            )
           ),
         )
         secondary.forEach(p =>

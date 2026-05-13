@@ -677,6 +677,18 @@
     text-transform: uppercase;
     padding: 16px 8px 6px;
     letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .left-panel-action-btn.remove-all {
+    opacity: 0.3;
+    padding: 2px;
+  }
+  .left-panel-action-btn.remove-all:hover {
+    opacity: 1;
+    color: #ef4444;
+    background: #fef2f2;
   }
   .left-panel-section-title:first-child {
     padding-top: 12px;
@@ -1038,6 +1050,20 @@
   .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  .modal-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: white;
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    cursor: pointer;
+    margin-right: auto;
+  }
+  .modal-select:focus {
+    border-color: var(--accent-color);
   }
 
   /* GitHub Star Link */
