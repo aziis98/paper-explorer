@@ -1,18 +1,3 @@
-export const COLORS = [
-  '#6366f1',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#3b82f6',
-  '#ec4899',
-  '#8b5cf6',
-  '#14b8a6',
-  '#f97316',
-  '#06b6d4',
-  '#84cc16',
-  '#a855f7',
-]
-
 export const fmt = (n: number) =>
   n >= 1e6
     ? (n / 1e6).toFixed(1) + 'M'
@@ -28,8 +13,6 @@ export const trunc = (s: string | null | undefined, n: number) =>
 export const sid = (id: string) =>
   id.replace('https://openalex.org/', '')
 
-export const getColor = (idx: number) =>
-  COLORS[idx % COLORS.length]
 
 export function getAuthors(w: any) {
   if (!w.authorships?.length) return 'Unknown authors'

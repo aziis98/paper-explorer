@@ -189,7 +189,7 @@
 
   #search-input {
     width: 100%;
-    padding: 12px 16px;
+    padding: 10px 16px;
     border: none;
     outline: none;
     font-size: 13px;
@@ -469,6 +469,7 @@
   .td-year {
     padding: 8px 4px;
     color: var(--text-secondary);
+    white-space: nowrap;
   }
   .td-cites {
     padding: 8px 14px;
@@ -500,6 +501,7 @@
   /* Table styles */
   .data-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 12px;
     th {

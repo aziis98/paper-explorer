@@ -1,6 +1,5 @@
-import type { Paper, Connection } from './types'
+import type { Paper } from './types'
 import {
-  getColor,
   getAuthors,
   getArXivUrl,
   getPdfUrl,
@@ -375,7 +374,6 @@ const searchPanel = SearchPanel(searchPanelEl, {
   },
   onAddResult: w => {
     if (state.papers.find(p => p.id === w.id)) return
-    const idx = state.papers.filter(p => !p.isRef).length
     state.papers.push({
       id: w.id,
       title: w.title || 'Untitled',
@@ -385,7 +383,7 @@ const searchPanel = SearchPanel(searchPanelEl, {
       createdDate: formatDate(w.created_date),
       citations: w.cited_by_count || 0,
       authors: getAuthors(w),
-      color: getColor(idx),
+      color: '#00d4ff',
       doi: w.doi,
       arxivUrl: getArXivUrl(w),
       pdfUrl: getPdfUrl(w),
@@ -415,7 +413,7 @@ const searchPanel = SearchPanel(searchPanelEl, {
       createdDate: formatDate(w.created_date),
       citations: w.cited_by_count || 0,
       authors: getAuthors(w),
-      color: getColor(0),
+      color: '#00d4ff',
       doi: w.doi,
       arxivUrl: getArXivUrl(w),
       pdfUrl: getPdfUrl(w),
@@ -581,9 +579,6 @@ async function loadRefsForPaper(
 
     const existSet = new Set(state.papers.map(p => p.id))
     let toFetch = refIds.filter(id => !existSet.has(id))
-    const alreadyThere = refIds.filter(id =>
-      existSet.has(id),
-    )
 
     if (toFetch.length) {
       const results = await fetchWorksByIds(toFetch, limit)
