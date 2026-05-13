@@ -429,8 +429,8 @@ export function Graph(
     cW = getW() - MARGIN.left - MARGIN.right
     cH = getH() - MARGIN.top - MARGIN.bottom
     svg
-      .attr('width', getW())
-      .attr('height', getH())
+      .attr('width', '100%')
+      .attr('height', '100%')
     svg
       .select('rect')
       .attr('width', getW())
@@ -447,7 +447,15 @@ export function Graph(
     if (localPapers.length && buildScales()) doDraw()
   }
 
-  window.addEventListener('resize', resize)
+  const resizeObserver = new ResizeObserver(() => {
+    // requestAnimationFrame prevents "ResizeObserver loop limit exceeded"
+    requestAnimationFrame(() => resize())
+  })
+  if (svgEl.parentElement) {
+    resizeObserver.observe(svgEl.parentElement)
+  } else {
+    window.addEventListener('resize', resize)
+  }
 
   return {
     update(
@@ -479,6 +487,7 @@ export function Graph(
     },
     unmount() {
       svg.selectAll('*').remove()
+      resizeObserver.disconnect()
       window.removeEventListener('resize', resize)
     },
   }

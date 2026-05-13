@@ -1,6 +1,24 @@
 import type { Paper, Connection } from './types'
-import { getColor, getAuthors, getArXivUrl, getPdfUrl, getMinDate, getMinYear, formatDate, sid, $, trunc, generateBibtex, downloadBlob } from './utils'
-import { fetchReferencedWorkIds, fetchWorksByIds, fetchCitingWorks, searchWorks } from './api'
+import {
+  getColor,
+  getAuthors,
+  getArXivUrl,
+  getPdfUrl,
+  getMinDate,
+  getMinYear,
+  formatDate,
+  sid,
+  $,
+  trunc,
+  generateBibtex,
+  downloadBlob,
+} from './utils'
+import {
+  fetchReferencedWorkIds,
+  fetchWorksByIds,
+  fetchCitingWorks,
+  searchWorks,
+} from './api'
 
 import { Graph } from './components/Graph'
 import { Tooltip } from './components/Tooltip'
@@ -15,27 +33,47 @@ import { PaperCache } from './PaperCache'
 // Dom Elements Construction
 const app = document.getElementById('app') as HTMLElement
 
-function createNavToggle(icon: string, target: HTMLElement, defaultCollapsed: boolean = false) {
-  const btn = $('button', { 
-    className: `nav-btn ${defaultCollapsed ? '' : 'active'}`,
-    title: 'Toggle Sidebar'
-  }, $('iconify-icon', { icon }))
-  
+function createNavToggle(
+  icon: string,
+  target: HTMLElement,
+  defaultCollapsed: boolean = false,
+) {
+  const btn = $(
+    'button',
+    {
+      className: `nav-btn ${defaultCollapsed ? '' : 'active'}`,
+      title: 'Toggle Sidebar',
+    },
+    $('iconify-icon', { icon }),
+  )
+
   if (defaultCollapsed) target.classList.add('collapsed')
-  
+
   btn.onclick = () => {
     target.classList.toggle('collapsed')
-    btn.classList.toggle('active', !target.classList.contains('collapsed'))
+    btn.classList.toggle(
+      'active',
+      !target.classList.contains('collapsed'),
+    )
   }
   return btn
 }
 
-const leftPanelEl = $('div', { className: 'sidebar left-2', id: 'left-panel' })
-const rightPanelEl = $('div', { className: 'sidebar right collapsed', id: 'right-panel' })
+const leftPanelEl = $('div', {
+  className: 'sidebar left-2',
+  id: 'left-panel',
+})
+const rightPanelEl = $('div', {
+  className: 'sidebar right collapsed',
+  id: 'right-panel',
+})
 const mainEl = $('main')
 
 const chartContainer = $('div', { id: 'chart-container' })
-const graphEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement
+const graphEl = document.createElementNS(
+  'http://www.w3.org/2000/svg',
+  'svg',
+) as SVGSVGElement
 graphEl.id = 'chart-svg'
 chartContainer.appendChild(graphEl)
 
@@ -43,7 +81,13 @@ const searchPanelEl = $('div', { id: 'search-container' })
 
 mainEl.append(chartContainer)
 
-const workspaceEl = $('div', { id: 'workspace' }, leftPanelEl, mainEl, rightPanelEl)
+const workspaceEl = $(
+  'div',
+  { id: 'workspace' },
+  leftPanelEl,
+  mainEl,
+  rightPanelEl,
+)
 
 const projectNameInput = $('input', {
   className: 'project-name-input',
@@ -53,84 +97,125 @@ const projectNameInput = $('input', {
     StoreManager.saveCurrentProject()
   },
   onKeyDown: (e: KeyboardEvent) => {
-    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-  }
+    if (e.key === 'Enter')
+      (e.target as HTMLInputElement).blur()
+  },
 }) as HTMLInputElement
 
-const projectDropdownList = $('div', { className: 'project-dropdown' })
+const projectDropdownList = $('div', {
+  className: 'project-dropdown',
+})
 
 function renderProjectDropdown() {
   projectDropdownList.innerHTML = ''
   const index = StoreManager.getProjectsIndex()
   index.sort((a, b) => b.lastModified - a.lastModified)
-  
+
   index.forEach(p => {
     projectDropdownList.append(
-      $('div', { 
-        className: 'project-item',
-        onClick: () => {
-          StoreManager.loadProject(p.id)
-          projectDropdownList.classList.remove('open')
-          projectNameInput.value = state.projectName
-          updateAll()
-        }
-      }, 
-        $('span', { className: 'project-item-name' }, p.name),
-        $('span', { className: 'project-item-date' }, new Date(p.lastModified).toLocaleString())
-      )
+      $(
+        'div',
+        {
+          className: 'project-item',
+          onClick: () => {
+            StoreManager.loadProject(p.id)
+            projectDropdownList.classList.remove('open')
+            projectNameInput.value = state.projectName
+            updateAll()
+          },
+        },
+        $(
+          'span',
+          { className: 'project-item-name' },
+          p.name,
+        ),
+        $(
+          'span',
+          { className: 'project-item-date' },
+          new Date(p.lastModified).toLocaleString(),
+        ),
+      ),
     )
   })
 
   projectDropdownList.append(
-    $('div', { 
-      className: 'new-project-btn',
-      onClick: () => {
-        StoreManager.createNewProject()
-        projectDropdownList.classList.remove('open')
-        projectNameInput.value = state.projectName
-        updateAll()
-        projectNameInput.focus()
-      }
-    }, $('iconify-icon', { icon: 'mdi:plus' }), 'New Project')
+    $(
+      'div',
+      {
+        className: 'new-project-btn',
+        onClick: () => {
+          StoreManager.createNewProject()
+          projectDropdownList.classList.remove('open')
+          projectNameInput.value = state.projectName
+          updateAll()
+          projectNameInput.focus()
+        },
+      },
+      $('iconify-icon', { icon: 'mdi:plus' }),
+      'New Project',
+    ),
   )
 }
 
-const navProjectsContainer = $('div', { className: 'nav-projects-container' },
-  $('div', { 
-    className: 'nav-projects',
-    onClick: (e: Event) => {
-      // Don't toggle dropdown if clicking the input
-      if (e.target === projectNameInput) return
-      renderProjectDropdown()
-      projectDropdownList.classList.toggle('open')
-    }
-  }, 
+const navProjectsContainer = $(
+  'div',
+  { className: 'nav-projects-container' },
+  $(
+    'div',
+    {
+      className: 'nav-projects',
+      onClick: (e: Event) => {
+        // Don't toggle dropdown if clicking the input
+        if (e.target === projectNameInput) return
+        renderProjectDropdown()
+        projectDropdownList.classList.toggle('open')
+      },
+    },
     $('iconify-icon', { icon: 'mdi:folder-outline' }),
     projectNameInput,
-    $('iconify-icon', { icon: 'mdi:chevron-down' })
+    $('iconify-icon', { icon: 'mdi:chevron-down' }),
   ),
-  projectDropdownList
+  projectDropdownList,
 )
 
 // Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
+document.addEventListener('click', e => {
   if (!navProjectsContainer.contains(e.target as Node)) {
     projectDropdownList.classList.remove('open')
   }
 })
 
-const navLeftToggle = createNavToggle('mdi:format-list-bulleted', leftPanelEl)
-const navRightToggle = createNavToggle('mdi:information-outline', rightPanelEl, true)
+const navLeftToggle = createNavToggle(
+  'mdi:format-list-bulleted',
+  leftPanelEl,
+)
+const navRightToggle = createNavToggle(
+  'mdi:information-outline',
+  rightPanelEl,
+  true,
+)
 
-const navbarEl = $('div', { id: 'navbar' },
-  $('div', { style: 'display: flex; gap: 8px; align-items: center; width: 33%' },
+const navbarEl = $(
+  'div',
+  { id: 'navbar' },
+  $(
+    'div',
+    {
+      style:
+        'display: flex; gap: 8px; align-items: center; width: 33%',
+    },
     navLeftToggle,
-    navProjectsContainer
+    navProjectsContainer,
   ),
   searchPanelEl,
-  $('div', { style: 'display: flex; gap: 8px; align-items: center; width: 33%; justify-content: flex-end' },
-    navRightToggle
-  )
+  $(
+    'div',
+    {
+      style:
+        'display: flex; gap: 8px; align-items: center; width: 33%; justify-content: flex-end',
+    },
+    navRightToggle,
+  ),
 )
 
 app.innerHTML = ''
@@ -143,7 +228,7 @@ document.body.appendChild(tooltipEl)
 const tooltip = Tooltip(tooltipEl)
 
 const graph = Graph(graphEl, {
-  onPaperClick: (paper) => {
+  onPaperClick: paper => {
     state.selectedId = paper.id
     updateAll()
     openInfoPanel(paper)
@@ -151,12 +236,22 @@ const graph = Graph(graphEl, {
   onHover: (paper, ev) => {
     state.hoveredId = paper.id
     tooltip.show(paper, ev)
-    graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
+    graph.update(
+      state.papers,
+      state.connections,
+      state.selectedId,
+      state.hoveredId,
+    )
   },
   onHoverLeave: () => {
     state.hoveredId = null
     tooltip.hide()
-    graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
+    graph.update(
+      state.papers,
+      state.connections,
+      state.selectedId,
+      state.hoveredId,
+    )
   },
 })
 
@@ -170,8 +265,12 @@ const leftPanel = LeftPanel(leftPanelEl, {
     openInfoPanel(paper)
   },
   onRemovePaper: id => {
-    state.papers = state.papers.filter(p => p.id !== id && p.parentId !== id)
-    state.connections = state.connections.filter(c => c.fromId !== id && c.toId !== id)
+    state.papers = state.papers.filter(
+      p => p.id !== id && p.parentId !== id,
+    )
+    state.connections = state.connections.filter(
+      c => c.fromId !== id && c.toId !== id,
+    )
     if (state.selectedId === id) {
       rightPanelEl.classList.add('collapsed')
       navRightToggle.classList.remove('active')
@@ -180,11 +279,18 @@ const leftPanel = LeftPanel(leftPanelEl, {
     updateAll()
   },
   onExport: type => {
-    const toExport = type === 'primary' ? state.papers.filter(p => !p.isRef) : state.papers
+    const toExport =
+      type === 'primary'
+        ? state.papers.filter(p => !p.isRef)
+        : state.papers
     if (!toExport.length) return
     const bibtex = generateBibtex(toExport)
-    downloadBlob(bibtex, `${state.projectName.replace(/\s+/g, '_')}_${type}.bib`, 'text/plain')
-  }
+    downloadBlob(
+      bibtex,
+      `${state.projectName.toLowerCase().replace(/\s+/g, '-')}_${type}.bib`,
+      'text/plain',
+    )
+  },
 })
 
 const rightPanel = RightPanel(rightPanelEl, {
@@ -197,7 +303,9 @@ const rightPanel = RightPanel(rightPanelEl, {
   onRowClick: w => {
     let p = state.papers.find(pp => pp.id === w.id)
     if (!p) {
-      const parent = state.papers.find(pp => pp.id === state.selectedId)
+      const parent = state.papers.find(
+        pp => pp.id === state.selectedId,
+      )
       p = {
         id: w.id,
         title: w.title,
@@ -228,7 +336,8 @@ const rightPanel = RightPanel(rightPanelEl, {
     updateRightPanelData()
   },
   onSetSort: key => {
-    if (state.sortKey === key) state.sortDesc = !state.sortDesc
+    if (state.sortKey === key)
+      state.sortDesc = !state.sortDesc
     else {
       state.sortKey = key
       state.sortDesc = true
@@ -236,13 +345,17 @@ const rightPanel = RightPanel(rightPanelEl, {
     updateRightPanelData()
   },
   onLoadRefs: async limit => {
-    const p = state.papers.find(pp => pp.id === state.selectedId)
+    const p = state.papers.find(
+      pp => pp.id === state.selectedId,
+    )
     if (p) await loadRefsForPaper(p, limit)
   },
   onLoadCits: async limit => {
-    const p = state.papers.find(pp => pp.id === state.selectedId)
+    const p = state.papers.find(
+      pp => pp.id === state.selectedId,
+    )
     if (p) await loadCitationsForPaper(p, limit)
-  }
+  },
 })
 
 const searchPanel = SearchPanel(searchPanelEl, {
@@ -250,7 +363,10 @@ const searchPanel = SearchPanel(searchPanelEl, {
     searchPanel.setLoading(true)
     try {
       state.lastSearchResults = await searchWorks(query)
-      searchPanel.showResults(state.lastSearchResults, new Set(state.papers.map(p => p.id)))
+      searchPanel.showResults(
+        state.lastSearchResults,
+        new Set(state.papers.map(p => p.id)),
+      )
     } catch {
       // Ignore API errors for search
     } finally {
@@ -279,12 +395,17 @@ const searchPanel = SearchPanel(searchPanelEl, {
       referencedWorks: w.referenced_works || null,
     })
     updateAll()
-    searchPanel.showResults(state.lastSearchResults, new Set(state.papers.map(p => p.id)))
+    searchPanel.showResults(
+      state.lastSearchResults,
+      new Set(state.papers.map(p => p.id)),
+    )
   },
   onAddResultNewGraph: w => {
-    StoreManager.createNewProject(trunc(w.title || 'Untitled', 30))
+    StoreManager.createNewProject(
+      trunc(w.title || 'Untitled', 30),
+    )
     projectNameInput.value = state.projectName
-    
+
     state.papers.push({
       id: w.id,
       title: w.title || 'Untitled',
@@ -305,7 +426,7 @@ const searchPanel = SearchPanel(searchPanelEl, {
     })
     updateAll()
     searchPanel.hideResults()
-  }
+  },
 })
 
 // Orchestration Logic
@@ -316,11 +437,22 @@ function syncAllConnections() {
       p1.referencedWorks.forEach(refId => {
         const sRefId = sid(refId)
         if (paperIds.has(sRefId)) {
-          const p2 = state.papers.find(p => sid(p.id) === sRefId)
+          const p2 = state.papers.find(
+            p => sid(p.id) === sRefId,
+          )
           if (p2) {
             const sP1Id = sid(p1.id)
-            if (!state.connections.some(c => sid(c.fromId) === sP1Id && sid(c.toId) === sRefId)) {
-              state.connections.push({ fromId: p1.id, toId: p2.id })
+            if (
+              !state.connections.some(
+                c =>
+                  sid(c.fromId) === sP1Id &&
+                  sid(c.toId) === sRefId,
+              )
+            ) {
+              state.connections.push({
+                fromId: p1.id,
+                toId: p2.id,
+              })
             }
           }
         }
@@ -331,14 +463,23 @@ function syncAllConnections() {
 
 function updateAll() {
   syncAllConnections()
-  graph.update(state.papers, state.connections, state.selectedId, state.hoveredId)
+  graph.update(
+    state.papers,
+    state.connections,
+    state.selectedId,
+    state.hoveredId,
+  )
   leftPanel.update(state.papers, state.selectedId)
   updateRightPanelData()
   StoreManager.saveCurrentProject()
 }
 
 function updateRightPanelData() {
-  rightPanel.updateTabsAndSort(state.activeTab, state.sortKey, state.sortDesc)
+  rightPanel.updateTabsAndSort(
+    state.activeTab,
+    state.sortKey,
+    state.sortDesc,
+  )
   rightPanel.renderTable(
     state.currentRefs,
     state.currentCits,
@@ -350,7 +491,7 @@ function openInfoPanel(p: Paper) {
   rightPanel.showPaper(p)
   rightPanelEl.classList.remove('collapsed')
   navRightToggle.classList.add('active')
-  
+
   const cached = PaperCache.getCachedMetadata(p.id)
   if (cached) {
     state.currentRefs = cached.refs
@@ -380,11 +521,24 @@ async function loadMetadata(p: Paper) {
     const refQuery = fetchWorksByIds(refIds, 50)
     const citQuery = fetchCitingWorks(p.id)
 
-    const [refs, cits] = await Promise.all([refQuery, citQuery])
+    const [refs, cits] = await Promise.all([
+      refQuery,
+      citQuery,
+    ])
 
-    state.currentRefs = refs.map((w: any) => ({ ...w, type: 'ref' }))
-    state.currentCits = cits.map((w: any) => ({ ...w, type: 'cit' }))
-    PaperCache.setCachedMetadata(p.id, state.currentRefs, state.currentCits)
+    state.currentRefs = refs.map((w: any) => ({
+      ...w,
+      type: 'ref',
+    }))
+    state.currentCits = cits.map((w: any) => ({
+      ...w,
+      type: 'cit',
+    }))
+    PaperCache.setCachedMetadata(
+      p.id,
+      state.currentRefs,
+      state.currentCits,
+    )
 
     // Ensure all papers fetched have their referencedWorks tracked if available
     refs.concat(cits).forEach((w: any) => {
@@ -394,7 +548,10 @@ async function loadMetadata(p: Paper) {
       }
     })
 
-    rightPanel.setStatus(`Found ${refs.length} refs & ${cits.length} citations.`, false)
+    rightPanel.setStatus(
+      `Found ${refs.length} refs & ${cits.length} citations.`,
+      false,
+    )
     p.metadataLoaded = true
     updateAll()
   } catch (e) {
@@ -403,7 +560,10 @@ async function loadMetadata(p: Paper) {
   }
 }
 
-async function loadRefsForPaper(paper: Paper, limit?: number) {
+async function loadRefsForPaper(
+  paper: Paper,
+  limit?: number,
+) {
   rightPanel.setStatus('Expanding references...', true)
 
   try {
@@ -421,12 +581,18 @@ async function loadRefsForPaper(paper: Paper, limit?: number) {
 
     const existSet = new Set(state.papers.map(p => p.id))
     let toFetch = refIds.filter(id => !existSet.has(id))
-    const alreadyThere = refIds.filter(id => existSet.has(id))
+    const alreadyThere = refIds.filter(id =>
+      existSet.has(id),
+    )
 
     if (toFetch.length) {
       const results = await fetchWorksByIds(toFetch, limit)
       results.forEach((w: any) => {
-        if (!w.publication_year || state.papers.some(px => px.id === w.id)) return
+        if (
+          !w.publication_year ||
+          state.papers.some(px => px.id === w.id)
+        )
+          return
         state.papers.push({
           id: w.id,
           title: w.title || 'Untitled',
@@ -439,7 +605,7 @@ async function loadRefsForPaper(paper: Paper, limit?: number) {
           color: paper.color,
           doi: w.doi,
           arxivUrl: getArXivUrl(w),
-        pdfUrl: getPdfUrl(w),
+          pdfUrl: getPdfUrl(w),
           isRef: true,
           parentId: paper.id,
           refsLoaded: false,
@@ -447,7 +613,9 @@ async function loadRefsForPaper(paper: Paper, limit?: number) {
         })
       })
 
-      const addedIds = new Set(results.map((r: any) => r.id))
+      const addedIds = new Set(
+        results.map((r: any) => r.id),
+      )
       toFetch = toFetch.filter(id => addedIds.has(id))
     }
 
@@ -460,7 +628,10 @@ async function loadRefsForPaper(paper: Paper, limit?: number) {
   }
 }
 
-async function loadCitationsForPaper(paper: Paper, limit?: number) {
+async function loadCitationsForPaper(
+  paper: Paper,
+  limit?: number,
+) {
   rightPanel.setStatus('Expanding citations...', true)
 
   try {
@@ -469,7 +640,11 @@ async function loadCitationsForPaper(paper: Paper, limit?: number) {
     if (limit) results = results.slice(0, limit)
 
     results.forEach((w: any) => {
-      if (!w.publication_year || state.papers.some(px => px.id === w.id)) return
+      if (
+        !w.publication_year ||
+        state.papers.some(px => px.id === w.id)
+      )
+        return
       state.papers.push({
         id: w.id,
         title: w.title || 'Untitled',

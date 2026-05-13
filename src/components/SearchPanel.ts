@@ -14,32 +14,20 @@ export function SearchPanel(el: HTMLElement, options: SearchPanelOptions) {
     type: 'text',
     autocomplete: 'off',
     placeholder: 'Search papers, try "Attention is all you need"',
-    style: {
-      width: '100%',
-      padding: '12px 16px',
-      border: 'none',
-      outline: 'none',
-      fontSize: '13px',
-      color: '#1e293b',
-      background: 'transparent',
-      borderRadius: '12px',
-    }
+    style: ''
   }) as HTMLInputElement
 
   const srchSpin = $('div', { 
-    id: 'srch-spin', 
-    style: { display: 'none', position: 'absolute', right: '12px', top: '12px' } 
-  }, $('iconify-icon', { icon: 'mdi:loading', class: 'spin', style: 'color: #6366f1; font-size: 16px' }))
+    id: 'srch-spin'
+  }, $('iconify-icon', { icon: 'mdi:loading', class: 'spin srch-spin-icon' }))
 
   const resultsDropdown = $('div', {
-    id: 'results-drop',
-    style: { display: 'none', borderTop: '1px solid #f1f5f9', maxHeight: '400px', overflowY: 'auto' }
+    id: 'results-drop'
   })
 
   const resultsList = $('div', { id: 'results-list' })
   const noRes = $('p', { 
-    id: 'no-res', 
-    style: { display: 'none', fontSize: '11px', color: '#94a3b8', textAlign: 'center', padding: '20px' } 
+    id: 'no-res'
   }, 'No results found.')
 
   resultsDropdown.append(resultsList, noRes)
@@ -104,104 +92,63 @@ export function SearchPanel(el: HTMLElement, options: SearchPanelOptions) {
         const item = $(
           'div',
           {
-            class: 'ri',
-            style: {
-              opacity: added ? '0.55' : '1',
-              padding: '12px 14px',
-              borderBottom: '0.5px solid #f1f5f9',
-              cursor: 'pointer',
-            },
-            onMouseEnter: (e: MouseEvent) => {
-              ;(e.currentTarget as HTMLElement).style.background = '#f8fafc'
-            },
-            onMouseLeave: (e: MouseEvent) => {
-              ;(e.currentTarget as HTMLElement).style.background = 'transparent'
-            },
+            className: `search-item ${added ? 'added' : ''}`,
             onClick: () => {
               if (!added) options.onAddResult(w)
             },
           },
           $(
             'div',
-            {
-               style: {
-                 display: 'flex',
-                 alignItems: 'flex-start',
-                 justifyContent: 'space-between',
-                 gap: '8px',
-               },
-            },
+            { className: 'search-item-header' },
             $(
               'p',
-              {
-                style: {
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  color: '#1e293b',
-                  lineHeight: '1.4',
-                flex: '1',
-              },
-            },
-            trunc(w.title || 'Untitled', 88),
+              { className: 'search-item-title' },
+              trunc(w.title || 'Untitled', 88),
+            ),
+            $(
+              'div',
+              { className: 'search-item-actions' },
+              $(
+                'button',
+                {
+                  className: `search-item-add ${added ? 'added' : ''}`,
+                  onClick: (e: Event) => {
+                    e.stopPropagation() // Prevent triggering the item's main onClick
+                    if (!added) options.onAddResult(w)
+                  }
+                },
+                added ? 'Added' : '+ Add',
+              ),
+              $(
+                'button',
+                {
+                  className: 'search-item-new-proj',
+                  title: 'Add to new project',
+                  onClick: (e: Event) => {
+                    e.stopPropagation()
+                    options.onAddResultNewGraph(w)
+                  }
+                },
+                $('iconify-icon', { icon: 'mdi:folder-plus-outline', style: 'font-size: 14px' })
+              )
+            )
           ),
           $(
             'div',
-            { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+            { className: 'search-item-meta' },
             $(
-              'button',
-              {
-                style: {
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  color: added ? '#94a3b8' : '#6366f1',
-                  background: 'none',
-                  border: 'none',
-                  cursor: added ? 'default' : 'pointer',
-                  padding: '2px 4px',
-                },
-                onClick: (e: Event) => {
-                  e.stopPropagation() // Prevent triggering the item's main onClick
-                  if (!added) options.onAddResult(w)
-                }
-              },
-              added ? 'Added' : '+ Add',
+              'p',
+              { className: 'search-item-authors' },
+              trunc(getAuthors(w), 60),
             ),
             $(
-              'button',
-              {
-                title: 'Add to new project',
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                },
-                onClick: (e: Event) => {
-                  e.stopPropagation()
-                  options.onAddResultNewGraph(w)
-                }
-              },
-              $('iconify-icon', { icon: 'mdi:folder-plus-outline', style: { fontSize: '14px' } })
-            )
-          )
-        ),
-
-          $(
-            'p',
-            {
-              style: {
-                 fontSize: '10px',
-                 color: '#94a3b8',
-                 marginTop: '3px',
-              },
-            },
-            `${getAuthors(w)} · ${getMinYear(w) || '?'} · ↑ ${fmt(w.cited_by_count || 0)}`
-          )
+              'p',
+              { className: 'search-item-stats' },
+              `${getMinYear(w) || '?'} · ${fmt(w.cited_by_count || 0)} citations`,
+            ),
+          ),
         )
+
         resultsList.appendChild(item)
       })
     },

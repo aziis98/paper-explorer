@@ -4,11 +4,11 @@ import { $, trunc, fmt } from '../utils'
 export function Tooltip(el: HTMLElement) {
   el.innerHTML = ''
   
-  const ttTitle = $('div', { id: 'tt-title', style: 'font-weight: 700; color: #1e293b; margin-bottom: 2px' })
-  const ttAuth = $('div', { id: 'tt-auth', style: 'font-size: 11px; color: #64748b; margin-bottom: 4px' })
-  const ttYear = $('div', { id: 'tt-year', style: 'font-size: 10px; color: #94a3b8; display: inline-block' })
-  const ttCites = $('div', { id: 'tt-cites', style: 'font-size: 10px; color: #6366f1; display: inline-block; margin-left: 8px; font-weight: 600' })
-  const ttHint = $('div', { id: 'tt-hint', style: 'font-size: 9px; color: #94a3b8; margin-top: 8px; font-style: italic' }, 'Click to see details & citations')
+  const ttTitle = $('div', { id: 'tt-title', className: 'tt-title' })
+  const ttAuth = $('div', { id: 'tt-auth', className: 'tt-auth' })
+  const ttYear = $('div', { id: 'tt-year', className: 'tt-year' })
+  const ttCites = $('div', { id: 'tt-cites', className: 'tt-cites' })
+  const ttHint = $('div', { id: 'tt-hint', className: 'tt-hint' }, 'Click to see details & citations')
 
   el.append(ttTitle, ttAuth, ttYear, ttCites, ttHint)
 

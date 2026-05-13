@@ -16,11 +16,11 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
   let refTableBody: HTMLElement
   
   const header = $('div', { className: 'sidebar-header' }, 
-    $('div', { style: 'display: flex; align-items: center; gap: 8px' },
+    $('div', { className: 'sidebar-header-left' },
       $('div', { id: 'info-color-dot', className: 'info-color-dot' }),
       $('h2', {}, 'Paper Info')
     ),
-    $('div', { style: 'display: flex; align-items: center; gap: 8px' },
+    $('div', { className: 'sidebar-header-right' },
       $('button', { id: 'info-close', className: 'info-close-btn' }, 
         $('iconify-icon', { icon: 'mdi:close' })
       )
@@ -32,7 +32,7 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
     $('p', { id: 'info-authors', className: 'info-authors' }),
     $('p', { id: 'info-year', className: 'info-year' }),
     $('div', { className: 'info-cites-block' },
-      $('div', { style: 'display: flex; flex-direction: column' }, 
+      $('div', { className: 'info-cites-block-inner' }, 
         $('span', { className: 'info-cites-label' }, 'Citations'),
         $('span', { id: 'info-cites', className: 'info-cites-value' })
       )
@@ -68,8 +68,8 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
       $('thead', {}, 
         $('tr', {}, 
           $('th', { id: 'th-title' }, 'Title'),
-          $('th', { id: 'th-year', style: 'width: 60px' }, 'Year'),
-          $('th', { id: 'th-cites', style: 'width: 80px; text-align: right' }, 'Cites')
+          $('th', { id: 'th-year', className: 'th-year' }, 'Year'),
+          $('th', { id: 'th-cites', className: 'th-cites' }, 'Cites')
         )
       ),
       (refTableBody = $('tbody', { id: 'ref-table-body' }))
@@ -77,7 +77,7 @@ export function RightPanel(el: HTMLElement, options: RightPanelOptions) {
   )
 
   const refSpin = $('div', { id: 'ref-spin', className: 'ref-spin' }, 
-    $('iconify-icon', { icon: 'mdi:loading', class: 'spin', style: 'font-size: 24px; color: var(--accent-color)' })
+    $('iconify-icon', { icon: 'mdi:loading', class: 'spin spinner-icon' })
   )
 
   el.append(header, infoSection, actionsSection, tabsContainer, tableContainer, refSpin)

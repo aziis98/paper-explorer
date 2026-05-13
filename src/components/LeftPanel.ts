@@ -10,19 +10,19 @@ export interface LeftPanelOptions {
 export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
   el.innerHTML = ''
   
-  const header = $('div', { className: 'sidebar-header', style: { flexDirection: 'column', alignItems: 'stretch', gap: '12px' } }, 
-    $('div', { style: 'display: flex; justify-content: space-between; align-items: center' },
+  const header = $('div', { className: 'sidebar-header sidebar-header-col' }, 
+    $('div', { className: 'sidebar-header-row' },
       $('h2', {}, 'Graph Papers'),
-      $('span', { id: 'totals-badge', style: { fontSize: '10px', color: '#94a3b8', fontWeight: '600' } })
+      $('span', { id: 'totals-badge', className: 'totals-badge' })
     ),
-    $('div', { style: 'display: flex; gap: 8px; align-items: center' },
+    $('div', { className: 'sidebar-header-actions' },
       $('button', { className: 'export-btn', onClick: () => options.onExport('primary') }, $('iconify-icon', {icon: 'mdi:download'}), 'Primary .bib'),
       $('button', { className: 'export-btn', onClick: () => options.onExport('all') }, $('iconify-icon', {icon: 'mdi:download'}), 'All .bib'),
-      $('div', { className: 'info-popup-container', style: { marginLeft: 'auto' } },
+      $('div', { className: 'info-popup-container ml-auto' },
         $('iconify-icon', { icon: 'mdi:information-outline', style: 'font-size: 16px' }),
         $('div', { className: 'info-popup-content' },
           $('strong', {}, 'BibTeX Export Specification'),
-          $('p', { style: 'margin-top: 6px; color: #64748b' }, 'The exported file will be a plaintext .bib file formatted for compatibility with LaTeX and modern reference managers (Zotero, Mendeley, etc).'),
+          $('p', { className: 'info-popup-desc' }, 'The exported file will be a plaintext .bib file formatted for compatibility with LaTeX and modern reference managers (Zotero, Mendeley, etc).'),
           $('pre', {}, `@article{Einstein1905W312345678,
   title = {On the Electrodynamics of Moving Bodies},
   author = {Einstein and others},
@@ -30,19 +30,19 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
   doi = {10.1002/andp.19053221004},
   url = {https://openalex.org/W312345678}
 }`),
-          $('ul', { style: 'margin-top: 6px; padding-left: 16px; color: #64748b; list-style-type: disc' },
-            $('li', { style: 'margin-bottom: 4px' }, $('strong', { style: 'color: #334155' }, 'Citation Key: '), 'Generated as ', $('code', { style: 'background: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-size: 9px' }, 'FirstAuthorYear + OpenAlexID'), ' to guarantee uniqueness.'),
-            $('li', { style: 'margin-bottom: 4px' }, $('strong', { style: 'color: #334155' }, 'Authors: '), 'Last names are properly delimited with ', $('code', { style: 'background: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-size: 9px' }, 'and'), ', or truncated with ', $('code', { style: 'background: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-size: 9px' }, 'and others'), '.'),
-            $('li', {}, $('strong', { style: 'color: #334155' }, 'Fields: '), 'Includes title, year, clean DOI, and the original OpenAlex URL.')
+          $('ul', { className: 'info-popup-list' },
+            $('li', { className: 'info-popup-list-item' }, $('strong', { className: 'text-dark' }, 'Citation Key: '), 'Generated as ', $('code', { className: 'inline-code' }, 'FirstAuthorYear + OpenAlexID'), ' to guarantee uniqueness.'),
+            $('li', { className: 'info-popup-list-item' }, $('strong', { className: 'text-dark' }, 'Authors: '), 'Last names are properly delimited with ', $('code', { className: 'inline-code' }, 'and'), ', or truncated with ', $('code', { className: 'inline-code' }, 'and others'), '.'),
+            $('li', {}, $('strong', { className: 'text-dark' }, 'Fields: '), 'Includes title, year, clean DOI, and the original OpenAlex URL.')
           )
         )
       )
     )
   )
 
-  const list = $('div', { id: 'papers-list', style: { flex: '1', overflowY: 'auto', padding: '10px' } })
-  const emptyMsg = $('div', { id: 'empty-msg', style: { padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' } }, 
-    $('iconify-icon', { icon: 'mdi:Graph-outline', style: 'font-size: 32px; opacity: 0.3; margin-bottom: 10px' }),
+  const list = $('div', { id: 'papers-list', className: 'papers-list' })
+  const emptyMsg = $('div', { id: 'empty-msg', className: 'empty-msg' }, 
+    $('iconify-icon', { icon: 'mdi:Graph-outline', className: 'empty-msg-icon' }),
     $('p', {}, 'Graph is empty. Search and add papers to start exploring.')
   )
   
@@ -84,98 +84,44 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
         return $(
           'div',
           {
+            className: `left-panel-item ${isSelected ? 'selected' : ''} ${isMain ? 'main' : 'ref'}`,
             title: isMain ? '' : 'Click to make this a primary node',
-            style: {
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '10px',
-              padding: '8px',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              background: isSelected ? '#e2e8f0' : 'transparent',
-              opacity: isMain ? '1' : '0.5',
-            },
-            onMouseEnter: (e: MouseEvent) => {
-              if (!isSelected) {
-                ;(e.currentTarget as HTMLElement).style.background = '#f1f5f9'
-              }
-            },
-            onMouseLeave: (e: MouseEvent) => {
-              if (!isSelected) {
-                ;(e.currentTarget as HTMLElement).style.background = 'transparent'
-              }
-            },
             onClick: () => options.onPaperClick(p),
           },
           $('span', {
-            style: {
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: p.isRef ? '#64748b' : p.color,
-              flexShrink: '0',
-              marginTop: '4px',
-            },
+            className: `left-panel-item-dot ${p.isRef ? 'ref' : ''}`,
+            style: { background: p.isRef ? '#64748b' : p.color }
           }),
           $(
             'div',
-            { style: { flex: '1', minWidth: '0' } },
+            { className: 'left-panel-item-content' },
             $(
               'p',
-              {
-                style: {
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  color: p.isRef ? '#94a3b8' : '#1e293b',
-                  lineHeight: '1.4',
-                },
-              },
+              { className: `left-panel-item-title ${p.isRef ? 'ref' : ''}` },
               trunc(p.title, 58),
             ),
             $(
               'p',
-              {
-                style: {
-                  fontSize: '10px',
-                  color: '#94a3b8',
-                  marginTop: '2px',
-                },
-              },
+              { className: 'left-panel-item-authors' },
+              trunc(p.authors, 75),
+            ),
+            $(
+              'p',
+              { className: 'left-panel-item-meta' },
               `${p.date || p.year || '?'} · ${fmt(p.citations)} citations`,
             ),
           ),
           $(
             'button',
             {
-              style: {
-                background: '#fee2e2',
-                border: 'none',
-                cursor: 'pointer',
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                fontSize: '9px',
-                color: '#dc2626',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: '0',
-                opacity: '0.6',
-                transition: 'opacity 0.2s',
-              },
-              onMouseEnter: (e: MouseEvent) => {
-                ;(e.currentTarget as HTMLElement).style.opacity = '1'
-              },
-              onMouseLeave: (e: MouseEvent) => {
-                ;(e.currentTarget as HTMLElement).style.opacity = '0.6'
-              },
-              onClick: (e: MouseEvent) => {
+              className: 'left-panel-remove-btn',
+              title: 'Remove paper from graph',
+              onClick: (e: Event) => {
                 e.stopPropagation()
                 options.onRemovePaper(p.id)
               },
             },
-            '✕',
+            $('iconify-icon', { icon: 'mdi:close' }),
           ),
         )
       }
@@ -183,15 +129,8 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
       if (direct.length > 0) {
         list.appendChild(
           $('div', {
-            style: {
-              fontSize: '11px',
-              fontWeight: '700',
-              color: '#64748b',
-              textTransform: 'uppercase',
-              padding: '12px 8px 6px',
-              letterSpacing: '0.05em',
-            },
-          }, 'Primary Papers')
+            className: 'left-panel-section-title'
+          }, 'PRIMARY PAPERS')
         )
         direct.forEach(p => list.appendChild(createItem(p, true)))
       }
@@ -199,15 +138,8 @@ export function LeftPanel(el: HTMLElement, options: LeftPanelOptions) {
       if (secondary.length > 0) {
         list.appendChild(
           $('div', {
-            style: {
-              fontSize: '11px',
-              fontWeight: '700',
-              color: '#64748b',
-              textTransform: 'uppercase',
-              padding: '16px 8px 6px',
-              letterSpacing: '0.05em',
-            },
-          }, 'Secondary Papers')
+            className: 'left-panel-section-title'
+          }, 'SECONDARY PAPERS')
         )
         secondary.forEach(p => list.appendChild(createItem(p, false)))
       }
