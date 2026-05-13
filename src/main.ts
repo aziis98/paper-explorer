@@ -197,6 +197,22 @@ const navRightToggle = createNavToggle(
   true,
 )
 
+const githubStarLink = $(
+  'a',
+  {
+    className: 'github-star-link',
+    href: 'https://github.com/aziis98/paper-explorer',
+    target: '_blank',
+    title: 'Star on GitHub',
+  },
+  $('iconify-icon', { icon: 'mdi:github' }),
+  $('span', {}, 'Star on GitHub'),
+  $('iconify-icon', {
+    icon: 'mdi:star',
+    className: 'star-icon',
+  }),
+)
+
 const navbarEl = $(
   'div',
   { id: 'navbar' },
@@ -216,6 +232,7 @@ const navbarEl = $(
       style:
         'display: flex; gap: 8px; align-items: center; width: 33%; justify-content: flex-end',
     },
+    githubStarLink,
     navRightToggle,
   ),
 )
