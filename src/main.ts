@@ -11,17 +11,12 @@ import {
   trunc,
   generateBibtex,
   downloadBlob,
-  extractDOIs,
-  extractBibtexTitles,
 } from './utils'
 import {
   fetchReferencedWorkIds,
   fetchWorksByIds,
   fetchCitingWorks,
   searchWorks,
-  fetchWorksByDOIs,
-  searchDOIByTitleOA,
-  searchDOIByTitleSS,
 } from './api'
 
 import { Graph } from './components/Graph'
@@ -315,10 +310,14 @@ const leftPanel = LeftPanel(leftPanelEl, {
   },
   onImport: () => {
     const modal = ImportModal({
-      onImport: (papers) => {
+      onImport: papers => {
         let addedCount = 0
         papers.forEach(p => {
-          if (!state.papers.some(existing => existing.id === p.id)) {
+          if (
+            !state.papers.some(
+              existing => existing.id === p.id,
+            )
+          ) {
             state.papers.push(p)
             addedCount++
           }
@@ -326,9 +325,11 @@ const leftPanel = LeftPanel(leftPanelEl, {
         if (addedCount > 0) {
           updateAll()
         } else {
-          alert('All selected papers are already in the graph.')
+          alert(
+            'All selected papers are already in the graph.',
+          )
         }
-      }
+      },
     })
     modal.show()
   },
@@ -341,15 +342,24 @@ const leftPanel = LeftPanel(leftPanelEl, {
   },
   onRemoveAllPapers: type => {
     const isRemoveSecondary = type === 'secondary'
-    const toRemove = state.papers.filter(p => p.isSecondary === isRemoveSecondary)
-    const idsToRemove = new Set(toRemove.map(p => p.id))
-    
-    state.papers = state.papers.filter(p => !idsToRemove.has(p.id))
-    state.connections = state.connections.filter(
-      c => !idsToRemove.has(c.fromId) && !idsToRemove.has(c.toId)
+    const toRemove = state.papers.filter(
+      p => p.isSecondary === isRemoveSecondary,
     )
-    
-    if (state.selectedId && idsToRemove.has(state.selectedId)) {
+    const idsToRemove = new Set(toRemove.map(p => p.id))
+
+    state.papers = state.papers.filter(
+      p => !idsToRemove.has(p.id),
+    )
+    state.connections = state.connections.filter(
+      c =>
+        !idsToRemove.has(c.fromId) &&
+        !idsToRemove.has(c.toId),
+    )
+
+    if (
+      state.selectedId &&
+      idsToRemove.has(state.selectedId)
+    ) {
       state.selectedId = null
       rightPanelEl.classList.add('collapsed')
       navRightToggle.classList.remove('active')
