@@ -273,16 +273,34 @@ export function ImportModal(options: ImportModalOptions) {
   )
 
   // --- Review View ---
-  const reviewList = $('div', { className: 'modal-review-list' })
+  const reviewListSuccess = $('div', { className: 'modal-review-list' })
+  const reviewListFailed = $('div', { className: 'modal-review-list' })
+
+  const failedSection = $(
+    'div',
+    { className: 'modal-review-section failed' },
+    $(
+      'div',
+      { className: 'status-main', style: { marginBottom: '8px', color: '#ef4444' } },
+      'Failed / No DOI Found:',
+    ),
+    reviewListFailed,
+  )
+
   const reviewView = $(
     'div',
     { className: 'modal-review' },
     $(
       'div',
-      { className: 'status-main', style: { marginBottom: '12px' } },
-      'Select papers to import:',
+      { className: 'modal-review-section' },
+      $(
+        'div',
+        { className: 'status-main', style: { marginBottom: '8px' } },
+        'Papers to Import:',
+      ),
+      reviewListSuccess,
     ),
-    reviewList,
+    failedSection,
   )
 
   function setTab(tab: 'upload' | 'paste') {
@@ -521,85 +539,223 @@ export function ImportModal(options: ImportModalOptions) {
     btnCancel.textContent = 'Cancel'
   }
 
+  async function resolveEntry(entry: ImportEntry, manualDoi: string) {
+    if (isProcessing) return
+    isProcessing = true
+    isCancelled = false
+    
+    // Switch to processing view
+    contentArea.innerHTML = ''
+    contentArea.appendChild(processingView)
+    btnImport.style.display = 'none'
+    tabs.style.display = 'none'
+    backendSelect.style.display = 'none'
+    
+    entry.doi = manualDoi.replace(/^https?:\/\/doi\.org\//, '').toLowerCase()
+    entry.status = 'pending'
+    entry.error = undefined
+    
+    updateProgress('Fetching metadata...', 50, entry.doi)
+    
+    try {
+      const results = await fetchWorksByDOIs([entry.doi])
+      const work = results[0]
+      if (work) {
+        entry.status = 'success'
+        entry.paperData = {
+          id: work.id,
+          title: work.title || 'Untitled',
+          year: getMinYear(work),
+          date: getMinDate(work),
+          pubDate: formatDate(work.publication_date),
+          createdDate: formatDate(work.created_date),
+          citations: work.cited_by_count || 0,
+          authors: getAuthors(work),
+          color: '#00d4ff',
+          doi: work.doi,
+          arxivUrl: getArXivUrl(work),
+          pdfUrl: getPdfUrl(work),
+          isSecondary: false,
+          parentId: null,
+          refsLoaded: false,
+          referencedWorks: work.referenced_works || null,
+        }
+        entry.selected = true
+      } else {
+        entry.status = 'error'
+        entry.error = 'Metadata not found'
+      }
+    } catch (e) {
+      entry.status = 'error'
+      entry.error = 'Fetch failed'
+    }
+    
+    isProcessing = false
+    updateProgress('Done!', 100, 'Resolved manual entry')
+    
+    // Small delay so the user sees the progress bar at 100%
+    await new Promise(r => setTimeout(r, 400))
+    
+    showReview()
+  }
+
   function renderReviewList() {
-    reviewList.innerHTML = ''
+    reviewListSuccess.innerHTML = ''
+    reviewListFailed.innerHTML = ''
+
+    const hasErrors = entries.some(e => e.status === 'error')
+    failedSection.style.display = hasErrors ? 'flex' : 'none'
+
     entries.forEach(entry => {
-      const checkbox = $(
-        'input',
-        {
-          type: 'checkbox',
-          className: 'review-item-checkbox',
-          checked: entry.selected,
-          disabled: entry.status === 'error',
-          onChange: (e: Event) => {
-            entry.selected = (e.target as HTMLInputElement).checked
-            btnImport.disabled = !entries.some(e => e.selected)
-          },
-        },
-      ) as HTMLInputElement
+      const isError = entry.status === 'error'
+      const targetList = isError ? reviewListFailed : reviewListSuccess
 
       const item = $(
         'div',
-        { className: `review-item ${entry.status === 'error' ? 'error' : ''}` },
-        checkbox,
+        { className: `review-item ${isError ? 'error' : ''}` },
+        !isError
+          ? $(
+              'input',
+              {
+                type: 'checkbox',
+                className: 'review-item-checkbox',
+                checked: entry.selected,
+                onChange: (e: Event) => {
+                  entry.selected = (e.target as HTMLInputElement).checked
+                  btnImport.disabled = !entries.some(e => e.selected)
+                },
+              },
+            )
+          : $('iconify-icon', {
+              icon: 'mdi:alert-circle',
+              className: 'review-item-error-icon',
+            }),
         $(
           'div',
-          { className: 'review-item-content' },
+          { className: 'review-item-info' },
           $(
             'div',
             { className: 'review-item-title' },
-            entry.paperData?.title || entry.title,
+            entry.paperData ? entry.paperData.title : entry.title,
           ),
-          $(
-            'div',
-            { className: 'review-item-meta' },
-            entry.paperData
-              ? [
-                  $('span', {}, entry.paperData.authors),
-                  $('span', {}, `(${entry.paperData.year})`),
-                  entry.doi
-                    ? $(
-                        'a',
-                        {
-                          href: entry.doi.startsWith('http')
-                            ? entry.doi
-                            : `https://doi.org/${entry.doi}`,
-                          target: '_blank',
-                          className: 'review-item-doi',
-                        },
-                        'DOI',
-                      )
-                    : null,
-                ]
-              : entry.doi
-              ? $(
-                  'a',
-                  {
-                    href: entry.doi.startsWith('http')
-                      ? entry.doi
-                      : `https://doi.org/${entry.doi}`,
-                    target: '_blank',
-                    className: 'review-item-doi',
-                  },
-                  entry.doi,
-                )
-              : null,
-          ),
-          entry.error
+          entry.paperData
             ? $(
                 'div',
-                { className: 'review-item-error' },
-                $('iconify-icon', { icon: 'mdi:alert-circle' }),
-                entry.error,
+                { className: 'review-item-meta' },
+                [
+                  entry.paperData.authors,
+                  entry.paperData.year
+                    ? ` · ${entry.paperData.year}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(''),
               )
-            : null,
+            : $(
+                'div',
+                { className: 'review-item-error-msg' },
+                entry.error || 'Resolution failed',
+              ),
+          isError
+            ? $(
+                'div',
+                { className: 'review-item-fix-container' },
+                $(
+                  'input',
+                  {
+                    type: 'text',
+                    placeholder: 'Paste DOI here...',
+                    className: 'review-item-doi-input',
+                    onKeyDown: async (e: KeyboardEvent) => {
+                      if (e.key === 'Enter') {
+                        const input = e.target as HTMLInputElement
+                        const val = input.value.trim()
+                        if (val) {
+                          const btn = input.nextElementSibling as HTMLButtonElement
+                          const originalText = btn.textContent
+                          btn.disabled = true
+                          btn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon>'
+                          try {
+                            await resolveEntry(entry, val)
+                          } catch (err) {
+                            btn.disabled = false
+                            btn.textContent = originalText
+                          }
+                        }
+                      }
+                    }
+                  },
+                ),
+                $(
+                  'button',
+                  {
+                    className: 'review-item-resolve-btn',
+                    onClick: async (e: Event) => {
+                      const btn = e.currentTarget as HTMLButtonElement
+                      const input = btn.previousElementSibling as HTMLInputElement
+                      const val = input.value.trim()
+                      if (val) {
+                        const originalText = btn.textContent
+                        btn.disabled = true
+                        btn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon>'
+                        try {
+                          await resolveEntry(entry, val)
+                        } catch (err) {
+                          btn.disabled = false
+                          btn.textContent = originalText
+                        }
+                      }
+                    }
+                  },
+                  'Resolve'
+                )
+              )
+            : null
+        ),
+        $(
+          'div',
+          { className: 'review-item-side' },
+          $(
+            'div',
+            { className: 'review-item-doi-container' },
+            entry.paperData?.doi
+              ? [
+                  $('iconify-icon', { icon: 'mdi:link-variant' }),
+                  $(
+                    'a',
+                    {
+                      href: entry.paperData.doi.startsWith('http')
+                        ? entry.paperData.doi
+                        : `https://doi.org/${entry.paperData.doi}`,
+                      target: '_blank',
+                      className: 'review-item-doi-link',
+                    },
+                    'DOI',
+                  ),
+                ]
+              : entry.doi && !isError
+                ? [
+                    $('iconify-icon', { icon: 'mdi:link-variant' }),
+                    $(
+                      'a',
+                      {
+                        href: entry.doi.startsWith('http')
+                          ? entry.doi
+                          : `https://doi.org/${entry.doi}`,
+                        target: '_blank',
+                        className: 'review-item-doi-link',
+                      },
+                      'DOI',
+                    ),
+                  ]
+                : null,
+          ),
         ),
       )
 
-      reviewList.appendChild(item)
+      targetList.appendChild(item)
     })
   }
-
   return {
     show() {
       document.body.appendChild(overlay)
