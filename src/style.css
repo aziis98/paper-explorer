@@ -55,7 +55,7 @@
     padding: 0 16px;
     z-index: 2000;
     box-shadow: var(--shadow-sm);
-    position: relative; /* For absolutely positioned search bar */
+    position: relative;
   }
 
   #workspace {
@@ -110,6 +110,13 @@
   #chart-container {
     flex: 1;
     position: relative;
+    min-height: 0;
+  }
+
+  #chart-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 }
 
@@ -130,7 +137,58 @@
     }
   }
 
-  /* Top Navbar Toggle Buttons */
+  .nav-left-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 33%;
+  }
+
+  .nav-right-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 33%;
+    justify-content: flex-end;
+  }
+
+  /* Sidebar Toggle Tabs (Linguetta) */
+  .sidebar-toggle-tab {
+    position: absolute;
+    top: 10%;
+    width: 14px;
+    height: 54px;
+    background: white;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 200;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-secondary);
+    font-size: 14px;
+    box-shadow: var(--shadow-sm);
+
+    &:hover {
+      background: #f8fafc;
+      color: var(--accent-color);
+      width: 18px;
+    }
+
+    &.left {
+      left: 0;
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+    }
+
+    &.right {
+      right: 0;
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+    }
+  }
+
   .nav-btn {
     width: 32px;
     height: 32px;
@@ -160,9 +218,11 @@
     font-weight: 600;
     color: var(--text-primary);
     cursor: pointer;
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 6px;
     transition: background 0.2s;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
 
     &:hover {
       background: #f1f5f9;

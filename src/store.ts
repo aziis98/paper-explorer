@@ -14,6 +14,7 @@ export interface State {
   sortDesc: boolean
   lastSearchResults: any[]
   dijkstraMode: boolean
+  graphMode: 'coords' | 'force'
 }
 
 export interface ProjectIndexEntry {
@@ -38,6 +39,7 @@ export const state: State = {
   sortDesc: true,
   lastSearchResults: [],
   dijkstraMode: false,
+  graphMode: 'coords',
 }
 
 export const StoreManager = {

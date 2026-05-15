@@ -206,21 +206,63 @@ const navProjectsContainer = $(
 )
 
 // Close dropdown when clicking outside
-document.addEventListener('click', e => {
-  if (!navProjectsContainer.contains(e.target as Node)) {
-    projectDropdownList.classList.remove('open')
-  }
-})
+function togglePanel(
+  side: 'left' | 'right',
+  collapsed?: boolean,
+) {
+  const target = side === 'left' ? leftPanelEl : rightPanelEl
+  const tab = side === 'left' ? sidebarLeftTab : sidebarRightTab
+  const icon = tab.querySelector('iconify-icon')
 
-const navLeftToggle = createNavToggle(
-  'mdi:format-list-bulleted',
-  leftPanelEl,
-)
-const navRightToggle = createNavToggle(
-  'mdi:information-outline',
-  rightPanelEl,
-  true,
-)
+  if (collapsed !== undefined) {
+    target.classList.toggle('collapsed', collapsed)
+  } else {
+    target.classList.toggle('collapsed')
+  }
+
+  const isCollapsed = target.classList.contains('collapsed')
+  if (icon) {
+    if (side === 'left') {
+      icon.setAttribute(
+        'icon',
+        isCollapsed ? 'mdi:chevron-right' : 'mdi:chevron-left',
+      )
+    } else {
+      icon.setAttribute(
+        'icon',
+        isCollapsed ? 'mdi:chevron-left' : 'mdi:chevron-right',
+      )
+    }
+  }
+}
+
+function createSidebarTab(
+  side: 'left' | 'right',
+  target: HTMLElement,
+) {
+  const icon = $('iconify-icon', {
+    icon: target.classList.contains('collapsed')
+      ? side === 'left'
+        ? 'mdi:chevron-right'
+        : 'mdi:chevron-left'
+      : side === 'left'
+        ? 'mdi:chevron-left'
+        : 'mdi:chevron-right',
+  })
+  const tab = $(
+    'div',
+    {
+      className: `sidebar-toggle-tab ${side}`,
+      title: `Toggle ${side} Panel`,
+      onClick: () => togglePanel(side),
+    },
+    icon,
+  )
+  return tab
+}
+
+const sidebarLeftTab = createSidebarTab('left', leftPanelEl)
+const sidebarRightTab = createSidebarTab('right', rightPanelEl)
 
 const githubStarLink = $(
   'a',
@@ -252,30 +294,47 @@ const navGraphToggle = $(
   $('iconify-icon', { icon: 'mdi:graph-outline' }),
 )
 
+const navForceToggle = $(
+  'button',
+  {
+    className: `nav-btn ${state.graphMode === 'force' ? 'active' : ''}`,
+    title: 'Force-Directed Graph',
+    onClick: (e: MouseEvent) => {
+      state.graphMode =
+        state.graphMode === 'coords' ? 'force' : 'coords'
+      navForceToggle.classList.toggle(
+        'active',
+        state.graphMode === 'force',
+      )
+      updateAll()
+    },
+  },
+  $('iconify-icon', { icon: 'ph:graph' }),
+)
+
 const navbarEl = $(
   'div',
   { id: 'navbar' },
   $(
     'div',
     {
-      style:
-        'display: flex; gap: 8px; align-items: center; width: 33%',
+      className: 'nav-left-section',
     },
-    navLeftToggle,
-    navGraphToggle,
     navProjectsContainer,
+    githubStarLink,
   ),
   searchPanelEl,
   $(
     'div',
     {
-      style:
-        'display: flex; gap: 8px; align-items: center; width: 33%; justify-content: flex-end',
+      className: 'nav-right-section',
     },
-    githubStarLink,
-    navRightToggle,
+    navForceToggle,
+    navGraphToggle,
   ),
 )
+
+mainEl.append(sidebarLeftTab, sidebarRightTab)
 
 app.innerHTML = ''
 app.append(navbarEl, workspaceEl)
@@ -301,6 +360,7 @@ const graph = Graph(graphEl, {
       state.selectedId,
       state.hoveredId,
       state.dijkstraMode,
+      state.graphMode,
     )
   },
   onHoverLeave: () => {
@@ -312,6 +372,7 @@ const graph = Graph(graphEl, {
       state.selectedId,
       state.hoveredId,
       state.dijkstraMode,
+      state.graphMode,
     )
   },
 })
@@ -333,8 +394,7 @@ const leftPanel = LeftPanel(leftPanelEl, {
       c => c.fromId !== id && c.toId !== id,
     )
     if (state.selectedId === id) {
-      rightPanelEl.classList.add('collapsed')
-      navRightToggle.classList.remove('active')
+      togglePanel('right', true)
       state.selectedId = null
     }
     updateAll()
@@ -405,8 +465,7 @@ const leftPanel = LeftPanel(leftPanelEl, {
       idsToRemove.has(state.selectedId)
     ) {
       state.selectedId = null
-      rightPanelEl.classList.add('collapsed')
-      navRightToggle.classList.remove('active')
+      togglePanel('right', true)
     }
     updateAll()
   },
@@ -414,9 +473,8 @@ const leftPanel = LeftPanel(leftPanelEl, {
 
 const rightPanel = RightPanel(rightPanelEl, {
   onClose: () => {
-    rightPanelEl.classList.add('collapsed')
+    togglePanel('right', true)
     state.selectedId = null
-    navRightToggle.classList.remove('active')
     updateAll()
   },
   onRowClick: w => {
@@ -587,6 +645,7 @@ function updateAll() {
     state.selectedId,
     state.hoveredId,
     state.dijkstraMode,
+    state.graphMode,
   )
   leftPanel.update(state.papers, state.selectedId)
   updateRightPanelData()
@@ -608,8 +667,7 @@ function updateRightPanelData() {
 
 function openInfoPanel(p: Paper) {
   rightPanel.showPaper(p)
-  rightPanelEl.classList.remove('collapsed')
-  navRightToggle.classList.add('active')
+  togglePanel('right', false)
 
   const cached = PaperCache.getCachedMetadata(p.id)
   if (cached) {
