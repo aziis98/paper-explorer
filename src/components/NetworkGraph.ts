@@ -54,6 +54,7 @@ export function NetworkGraph(
 
   let activeSourceId: string | null = null
   let distances = new Map<string, number>()
+  let linksData: any[] = []
 
   const rScale = d3.scaleSymlog().constant(1).range([4, 18])
 
@@ -109,11 +110,12 @@ export function NetworkGraph(
       simulation.nodes(localPapers as any)
     }
 
-    const linksData = localConnections.map(c => ({
+    linksData = localConnections.map(c => ({
       source: c.fromId,
       target: c.toId,
     }))
     ;(simulation.force('link') as d3.ForceLink<any, any>).links(linksData)
+    simulation.on('tick', ticked)
 
     const structureKey = papers.map(p => p.id).join(',') + '|' + connections.map(c => `${c.fromId}-${c.toId}`).join(',')
     const structureChanged = structureKey !== lastStructureKey

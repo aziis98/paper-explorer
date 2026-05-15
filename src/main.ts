@@ -33,31 +33,7 @@ import { PaperCache } from './PaperCache'
 // Dom Elements Construction
 const app = document.getElementById('app') as HTMLElement
 
-function createNavToggle(
-  icon: string,
-  target: HTMLElement,
-  defaultCollapsed: boolean = false,
-) {
-  const btn = $(
-    'button',
-    {
-      className: `nav-btn ${defaultCollapsed ? '' : 'active'}`,
-      title: 'Toggle Sidebar',
-    },
-    $('iconify-icon', { icon }),
-  )
 
-  if (defaultCollapsed) target.classList.add('collapsed')
-
-  btn.onclick = () => {
-    target.classList.toggle('collapsed')
-    btn.classList.toggle(
-      'active',
-      !target.classList.contains('collapsed'),
-    )
-  }
-  return btn
-}
 
 const leftPanelEl = $('div', {
   className: 'sidebar left-2',
@@ -285,7 +261,7 @@ const navGraphToggle = $(
   {
     className: `nav-btn ${state.dijkstraMode ? 'active' : ''}`,
     title: 'Shortest Path Mode',
-    onClick: (e: MouseEvent) => {
+    onClick: () => {
       state.dijkstraMode = !state.dijkstraMode
       navGraphToggle.classList.toggle('active', state.dijkstraMode)
       updateAll()
@@ -299,7 +275,7 @@ const navForceToggle = $(
   {
     className: `nav-btn ${state.graphMode === 'force' ? 'active' : ''}`,
     title: 'Force-Directed Graph',
-    onClick: (e: MouseEvent) => {
+    onClick: () => {
       state.graphMode =
         state.graphMode === 'coords' ? 'force' : 'coords'
       navForceToggle.classList.toggle(

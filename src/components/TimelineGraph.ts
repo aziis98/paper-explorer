@@ -71,7 +71,7 @@ export function TimelineGraph(
     t => d3.interpolateRgb('#0369a1', '#bae6fd')(t),
   )
 
-  function buildScales(newPapers: Paper[] = []) {
+  function buildScales() {
     const dates = localPapers.filter(p => p.date).map(p => new Date(p.date!))
     if (!dates.length) { xScaleBase = null; return false; }
     const maxC = Math.max(...localPapers.map(p => p.citations), 0)
