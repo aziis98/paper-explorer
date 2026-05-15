@@ -1,12 +1,41 @@
-import { $ } from '../utils'
+import {
+  $,
+  extractDOIs,
+  extractBibtexTitles,
+  getAuthors,
+  getMinYear,
+  getMinDate,
+  formatDate,
+  getArXivUrl,
+  getPdfUrl,
+} from '../utils'
+import {
+  fetchWorksByDOIs,
+  searchDOIByTitleOA,
+  searchDOIByTitleSS,
+} from '../api'
+import type { Paper } from '../types'
 
 export interface ImportModalOptions {
-  onImport: (text: string, backend: 'oa' | 'ss') => void
+  onImport: (papers: Paper[]) => void
+}
+
+interface ImportEntry {
+  id: string
+  title: string
+  doi: string | null
+  status: 'pending' | 'resolving' | 'fetching' | 'success' | 'error'
+  error?: string
+  paperData?: Paper
+  selected: boolean
 }
 
 export function ImportModal(options: ImportModalOptions) {
   let pastedText = ''
   let selectedBackend: 'oa' | 'ss' = 'oa'
+  let entries: ImportEntry[] = []
+  let isProcessing = false
+  let isCancelled = false
 
   const overlay = $('div', { className: 'modal-overlay' })
 
@@ -21,6 +50,7 @@ export function ImportModal(options: ImportModalOptions) {
     ),
   )
 
+  // --- Input View ---
   const tabUpload = $(
     'button',
     {
@@ -28,7 +58,7 @@ export function ImportModal(options: ImportModalOptions) {
       onClick: () => setTab('upload'),
     },
     'Upload .bib / .txt',
-  )
+  ) as HTMLButtonElement
 
   const tabPaste = $(
     'button',
@@ -37,7 +67,7 @@ export function ImportModal(options: ImportModalOptions) {
       onClick: () => setTab('paste'),
     },
     'Paste DOIs / Text',
-  )
+  ) as HTMLButtonElement
 
   const tabs = $(
     'div',
@@ -54,47 +84,67 @@ export function ImportModal(options: ImportModalOptions) {
   fileInput.onchange = async e => {
     const file = (e.target as HTMLInputElement).files?.[0]
     if (!file) return
-    const text = await file.text()
-    close()
-    options.onImport(text, selectedBackend)
+    pastedText = await file.text()
+    startImport()
   }
 
   const uploadArea = $(
     'div',
     {
       className: 'modal-upload-area',
-      onClick: () => fileInput.click(),
+      onClick: () => {
+        if (selectedBackend === 'ss' && !localStorage.getItem('ss_api_key')) return
+        fileInput.click()
+      },
       onDragOver: (e: DragEvent) => {
+        if (selectedBackend === 'ss' && !localStorage.getItem('ss_api_key')) return
         e.preventDefault()
         uploadArea.classList.add('dragover')
       },
       onDragLeave: () =>
         uploadArea.classList.remove('dragover'),
       onDrop: async (e: DragEvent) => {
+        if (selectedBackend === 'ss' && !localStorage.getItem('ss_api_key')) return
         e.preventDefault()
         uploadArea.classList.remove('dragover')
         const file = e.dataTransfer?.files[0]
         if (!file) return
-        const text = await file.text()
-        close()
-        options.onImport(text, selectedBackend)
+        pastedText = await file.text()
+        startImport()
       },
     },
-    $('iconify-icon', {
-      icon: 'mdi:cloud-upload',
-      className: 'modal-upload-icon',
-    }),
-    $(
-      'div',
-      { className: 'modal-upload-text' },
-      'Click or drag file to upload',
-    ),
-    $(
-      'div',
-      { className: 'modal-upload-subtext' },
-      'Supports .bib and .txt files',
-    ),
   )
+
+  function refreshUploadArea() {
+    uploadArea.innerHTML = ''
+    const isSS = selectedBackend === 'ss'
+    const hasKey = !!localStorage.getItem('ss_api_key')
+    
+    if (isSS && !hasKey) {
+      uploadArea.classList.add('disabled')
+      uploadArea.append(
+        $('iconify-icon', {
+          icon: 'mdi:api-off',
+          className: 'modal-upload-icon',
+          style: { color: '#ef4444' }
+        }),
+        $('div', { className: 'modal-upload-text' }, 'API Key Required'),
+        $('div', { className: 'modal-upload-subtext' }, 'Please set your Semantic Scholar API key to use upload')
+      )
+    } else {
+      uploadArea.classList.remove('disabled')
+      uploadArea.append(
+        $('iconify-icon', {
+          icon: 'mdi:cloud-upload',
+          className: 'modal-upload-icon',
+        }),
+        $('div', { className: 'modal-upload-text' }, 'Click or drag file to upload'),
+        $('div', { className: 'modal-upload-subtext' }, 'Supports .bib and .txt files')
+      )
+    }
+  }
+
+  refreshUploadArea()
 
   const textarea = $('textarea', {
     className: 'modal-textarea',
@@ -112,26 +162,33 @@ export function ImportModal(options: ImportModalOptions) {
     uploadArea,
   )
 
-  const btnCancel = $(
-    'button',
-    { className: 'btn btn-secondary', onClick: close },
-    'Cancel',
-  )
-  const btnImport = $(
+  const btnApiKey = $(
     'button',
     {
-      className: 'btn btn-primary',
+      className: 'modal-action-btn',
       style: { display: 'none' },
       onClick: () => {
-        if (pastedText.trim()) {
-          close()
-          options.onImport(pastedText, selectedBackend)
+        const key = prompt('Enter Semantic Scholar API Key:', localStorage.getItem('ss_api_key') || '')
+        if (key !== null) {
+          if (key.trim()) localStorage.setItem('ss_api_key', key.trim())
+          else localStorage.removeItem('ss_api_key')
+          updateApiKeyButton()
         }
       },
     },
-    $('iconify-icon', { icon: 'mdi:import' }),
-    'Import',
+    $('iconify-icon', { icon: 'mdi:api-off' }),
   ) as HTMLButtonElement
+
+  function updateApiKeyButton() {
+    const hasKey = !!localStorage.getItem('ss_api_key')
+    const icon = btnApiKey.querySelector('iconify-icon')
+    if (icon) {
+      icon.setAttribute('icon', hasKey ? 'mdi:api' : 'mdi:api-off')
+    }
+    btnApiKey.style.color = hasKey ? '#22c55e' : '#ef4444'
+    btnApiKey.title = hasKey ? 'Semantic Scholar API Key Set' : 'Semantic Scholar API Key Missing (Rate limited)'
+    refreshUploadArea()
+  }
 
   const backendSelect = $(
     'select',
@@ -140,6 +197,15 @@ export function ImportModal(options: ImportModalOptions) {
       onChange: (e: Event) => {
         selectedBackend = (e.target as HTMLSelectElement)
           .value as 'oa' | 'ss'
+        
+        const isSS = selectedBackend === 'ss'
+        btnApiKey.style.display = isSS ? 'flex' : 'none'
+        
+        if (isSS) {
+          updateApiKeyButton()
+        }
+        
+        refreshUploadArea()
       },
     },
     $('option', { value: 'oa' }, 'OpenAlex Resolver'),
@@ -150,10 +216,28 @@ export function ImportModal(options: ImportModalOptions) {
     ),
   )
 
+  const btnCancel = $(
+    'button',
+    { className: 'btn btn-secondary', onClick: close },
+    'Cancel',
+  )
+
+  const btnImport = $(
+    'button',
+    {
+      className: 'btn btn-primary',
+      style: { display: 'none' },
+      onClick: startImport,
+    },
+    $('iconify-icon', { icon: 'mdi:import' }),
+    'Import',
+  ) as HTMLButtonElement
+
   const footer = $(
     'div',
     { className: 'modal-footer' },
     backendSelect,
+    btnApiKey,
     btnCancel,
     btnImport,
   )
@@ -169,6 +253,37 @@ export function ImportModal(options: ImportModalOptions) {
 
   overlay.appendChild(container)
   overlay.appendChild(fileInput)
+
+  // --- Processing View ---
+  const progressBar = $('div', { className: 'progress-bar' })
+  const progressContainer = $(
+    'div',
+    { className: 'progress-container' },
+    progressBar,
+  )
+  const statusMain = $('div', { className: 'status-main' })
+  const statusSub = $('div', { className: 'status-sub' })
+
+  const processingView = $(
+    'div',
+    { className: 'modal-processing' },
+    statusMain,
+    statusSub,
+    progressContainer,
+  )
+
+  // --- Review View ---
+  const reviewList = $('div', { className: 'modal-review-list' })
+  const reviewView = $(
+    'div',
+    { className: 'modal-review' },
+    $(
+      'div',
+      { className: 'status-main', style: { marginBottom: '12px' } },
+      'Select papers to import:',
+    ),
+    reviewList,
+  )
 
   function setTab(tab: 'upload' | 'paste') {
     if (tab === 'upload') {
@@ -193,6 +308,7 @@ export function ImportModal(options: ImportModalOptions) {
   }
 
   function close() {
+    isCancelled = true
     overlay.classList.remove('visible')
     setTimeout(() => {
       if (overlay.parentNode) {
@@ -201,14 +317,303 @@ export function ImportModal(options: ImportModalOptions) {
     }, 200)
   }
 
+  async function startImport() {
+    if (isProcessing) return
+    isProcessing = true
+    isCancelled = false
+
+    const dois = extractDOIs(pastedText)
+    const titles = extractBibtexTitles(pastedText)
+
+    if (!dois.length && !titles.length) {
+      alert('No valid DOIs or BibTeX titles found.')
+      isProcessing = false
+      return
+    }
+
+    // Switch to processing view
+    tabs.style.display = 'none'
+    contentArea.innerHTML = ''
+    contentArea.appendChild(processingView)
+    backendSelect.style.display = 'none'
+    btnImport.style.display = 'none'
+    btnCancel.textContent = 'Cancel'
+    btnCancel.onclick = () => {
+      isCancelled = true
+      close()
+    }
+
+    entries = []
+    const doiSet = new Set<string>()
+    const titleSet = new Set<string>()
+
+    // 1. Extract DOIs from everywhere (plain text or BibTeX fields)
+    const allDois = extractDOIs(pastedText)
+    allDois.forEach(doi => {
+      const normalizedDoi = doi.toLowerCase()
+      if (!doiSet.has(normalizedDoi)) {
+        doiSet.add(normalizedDoi)
+        entries.push({
+          id: Math.random().toString(36).substr(2, 9),
+          title: normalizedDoi,
+          doi: normalizedDoi,
+          status: 'pending',
+          selected: true,
+        })
+      }
+    })
+
+    // 2. Extract BibTeX titles that DON'T have a DOI already found
+    const bibData = extractBibtexTitles(pastedText) // Now returns titles without DOIs
+    bibData.forEach(title => {
+      if (!titleSet.has(title)) {
+        titleSet.add(title)
+        entries.push({
+          id: Math.random().toString(36).substr(2, 9),
+          title,
+          doi: null,
+          status: 'pending',
+          selected: true,
+        })
+      }
+    })
+
+    // Phase 1: Resolve Titles
+    const toResolve = entries.filter(e => !e.doi)
+    if (toResolve.length > 0) {
+      const resolver =
+        selectedBackend === 'oa'
+          ? searchDOIByTitleOA
+          : searchDOIByTitleSS
+      const backendName =
+        selectedBackend === 'oa' ? 'OpenAlex' : 'SemScholar'
+
+      for (let i = 0; i < toResolve.length; i++) {
+        if (isCancelled) return
+        const entry = toResolve[i]
+        entry.status = 'resolving'
+        updateProgress(
+          `Resolving ${i + 1} of ${toResolve.length}`,
+          ((i + 1) / toResolve.length) * 50,
+          `[${backendName}] ${entry.title}`,
+        )
+
+        try {
+          const doi = await resolver(entry.title)
+          if (doi) {
+            entry.doi = doi
+            entry.status = 'pending'
+          } else {
+            entry.status = 'error'
+            entry.error = 'Could not resolve DOI'
+            entry.selected = false
+          }
+        } catch (e) {
+          entry.status = 'error'
+          entry.error = 'Resolution failed'
+          entry.selected = false
+        }
+        // Small delay to be nice to APIs
+        await new Promise(resolve =>
+          setTimeout(
+            resolve,
+            selectedBackend === 'oa' ? 100 : 200,
+          ),
+        )
+      }
+    }
+
+    // Phase 2: Fetch Metadata
+    if (isCancelled) return
+    const resolvedEntries = entries.filter(e => e.doi && e.status !== 'error')
+    if (resolvedEntries.length > 0) {
+      updateProgress('Fetching paper metadata...', 75, 'Getting full records from OpenAlex')
+      const allDois = resolvedEntries.map(e => e.doi!)
+      try {
+        const results = await fetchWorksByDOIs(allDois)
+        
+        // Map results back to entries
+        resolvedEntries.forEach(entry => {
+          const work = results.find(
+            (w: any) =>
+              w.doi?.toLowerCase() ===
+              entry.doi?.toLowerCase() ||
+              w.doi?.toLowerCase() ===
+              'https://doi.org/' + entry.doi?.toLowerCase(),
+          )
+          if (work) {
+            entry.status = 'success'
+            entry.paperData = {
+              id: work.id,
+              title: work.title || 'Untitled',
+              year: getMinYear(work),
+              date: getMinDate(work),
+              pubDate: formatDate(work.publication_date),
+              createdDate: formatDate(work.created_date),
+              citations: work.cited_by_count || 0,
+              authors: getAuthors(work),
+              color: '#00d4ff',
+              doi: work.doi,
+              arxivUrl: getArXivUrl(work),
+              pdfUrl: getPdfUrl(work),
+              isSecondary: false,
+              parentId: null,
+              refsLoaded: false,
+              referencedWorks: work.referenced_works || null,
+            }
+          } else {
+            entry.status = 'error'
+            entry.error = 'Metadata not found'
+            entry.selected = false
+          }
+        })
+      } catch (e) {
+        resolvedEntries.forEach(entry => {
+          entry.status = 'error'
+          entry.error = 'Fetch failed'
+          entry.selected = false
+        })
+      }
+    }
+
+    // Final Deduplication by canonical DOI (if metadata found)
+    const finalEntries: ImportEntry[] = []
+    const finalDoiSet = new Set<string>()
+    entries.forEach(entry => {
+      const canonicalDoi = entry.paperData?.doi?.toLowerCase() || entry.doi?.toLowerCase()
+      if (canonicalDoi) {
+        if (!finalDoiSet.has(canonicalDoi)) {
+          finalDoiSet.add(canonicalDoi)
+          finalEntries.push(entry)
+        }
+      } else {
+        finalEntries.push(entry)
+      }
+    })
+    entries = finalEntries
+
+    updateProgress('Done!', 100, 'Processing complete')
+    showReview()
+  }
+
+  function updateProgress(main: string, percent: number, sub: string = '') {
+    statusMain.textContent = main
+    statusSub.textContent = sub
+    progressBar.style.width = `${percent}%`
+  }
+
+  function showReview() {
+    contentArea.innerHTML = ''
+    contentArea.appendChild(reviewView)
+    renderReviewList()
+
+    btnImport.style.display = 'flex'
+    btnImport.textContent = 'Finalize Import'
+    btnImport.disabled = !entries.some(e => e.selected)
+    btnImport.onclick = () => {
+      const selectedPapers = entries
+        .filter(e => e.selected && e.paperData)
+        .map(e => e.paperData!)
+      options.onImport(selectedPapers)
+      close()
+    }
+
+    btnCancel.textContent = 'Cancel'
+  }
+
+  function renderReviewList() {
+    reviewList.innerHTML = ''
+    entries.forEach(entry => {
+      const checkbox = $(
+        'input',
+        {
+          type: 'checkbox',
+          className: 'review-item-checkbox',
+          checked: entry.selected,
+          disabled: entry.status === 'error',
+          onChange: (e: Event) => {
+            entry.selected = (e.target as HTMLInputElement).checked
+            btnImport.disabled = !entries.some(e => e.selected)
+          },
+        },
+      ) as HTMLInputElement
+
+      const item = $(
+        'div',
+        { className: `review-item ${entry.status === 'error' ? 'error' : ''}` },
+        checkbox,
+        $(
+          'div',
+          { className: 'review-item-content' },
+          $(
+            'div',
+            { className: 'review-item-title' },
+            entry.paperData?.title || entry.title,
+          ),
+          $(
+            'div',
+            { className: 'review-item-meta' },
+            entry.paperData
+              ? [
+                  $('span', {}, entry.paperData.authors),
+                  $('span', {}, `(${entry.paperData.year})`),
+                  entry.doi
+                    ? $(
+                        'a',
+                        {
+                          href: entry.doi.startsWith('http')
+                            ? entry.doi
+                            : `https://doi.org/${entry.doi}`,
+                          target: '_blank',
+                          className: 'review-item-doi',
+                        },
+                        'DOI',
+                      )
+                    : null,
+                ]
+              : entry.doi
+              ? $(
+                  'a',
+                  {
+                    href: entry.doi.startsWith('http')
+                      ? entry.doi
+                      : `https://doi.org/${entry.doi}`,
+                    target: '_blank',
+                    className: 'review-item-doi',
+                  },
+                  entry.doi,
+                )
+              : null,
+          ),
+          entry.error
+            ? $(
+                'div',
+                { className: 'review-item-error' },
+                $('iconify-icon', { icon: 'mdi:alert-circle' }),
+                entry.error,
+              )
+            : null,
+        ),
+      )
+
+      reviewList.appendChild(item)
+    })
+  }
+
   return {
     show() {
       document.body.appendChild(overlay)
-      // Force reflow for transition
       void overlay.offsetWidth
       overlay.classList.add('visible')
 
       // Reset state
+      isProcessing = false
+      isCancelled = false
+      tabs.style.display = 'flex'
+      backendSelect.style.display = 'block'
+      btnImport.style.display = 'none'
+      btnCancel.textContent = 'Cancel'
+      btnCancel.onclick = close
       setTab('upload')
       textarea.value = ''
       pastedText = ''

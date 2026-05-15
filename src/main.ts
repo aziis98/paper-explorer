@@ -315,109 +315,18 @@ const leftPanel = LeftPanel(leftPanelEl, {
   },
   onImport: () => {
     const modal = ImportModal({
-      onImport: async (text, backend) => {
-        const dois = extractDOIs(text)
-        const titles = extractBibtexTitles(text)
-
-        if (!dois.length && !titles.length) {
-          alert('No valid DOIs or BibTeX titles found in the provided text.')
-          return
-        }
-
-        const importBtn = document.getElementById('import-btn') as HTMLElement
-        const cancelBtn = document.getElementById('cancel-import-btn') as HTMLElement
-        let isCancelled = false
-
-        if (importBtn) {
-          importBtn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> Importing...'
-          importBtn.style.pointerEvents = 'none'
-        }
-        
-        if (cancelBtn) {
-          cancelBtn.style.display = 'flex'
-          cancelBtn.onclick = () => { isCancelled = true }
-        }
-
-        try {
-          if (titles.length) {
-            const titleDois: (string | null)[] = []
-            const resolver = backend === 'oa' ? searchDOIByTitleOA : searchDOIByTitleSS
-
-            for (let i = 0; i < titles.length; i++) {
-              if (isCancelled) break
-              if (importBtn) {
-                const backendName = backend === 'oa' ? 'OpenAlex' : 'SemScholar'
-                importBtn.innerHTML = `<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> [${backendName}] Resolving (${i + 1}/${titles.length})...`
-              }
-              const doi = await resolver(titles[i])
-              titleDois.push(doi)
-              await new Promise(resolve => setTimeout(resolve, backend === 'oa' ? 100 : 200)) 
-            }
-            if (isCancelled) {
-              alert('Import cancelled.')
-              return
-            }
-            titleDois.forEach(doi => {
-              if (doi) dois.push(doi)
-            })
+      onImport: (papers) => {
+        let addedCount = 0
+        papers.forEach(p => {
+          if (!state.papers.some(existing => existing.id === p.id)) {
+            state.papers.push(p)
+            addedCount++
           }
-
-          if (isCancelled) return
-
-          if (importBtn) {
-            importBtn.innerHTML = '<iconify-icon icon="mdi:loading" class="spin"></iconify-icon> Fetching paper data...'
-          }
-
-          // Find DOIs we don't already have
-          const existingDois = new Set(state.papers.map(p => p.doi?.toLowerCase()).filter(Boolean))
-          const newDois = dois.filter(doi => !existingDois.has(doi.toLowerCase()))
-          
-          if (!newDois.length) {
-            alert('All found DOIs are already in the graph.')
-            return
-          }
-          const results = await fetchWorksByDOIs(newDois)
-          if (!results.length) {
-            alert('No papers found for the provided DOIs.')
-            return
-          }
-
-          results.forEach((w: any) => {
-            // Double check by ID
-            if (state.papers.some(p => p.id === w.id)) return
-            
-            state.papers.push({
-              id: w.id,
-              title: w.title || 'Untitled',
-              year: getMinYear(w),
-              date: getMinDate(w),
-              pubDate: formatDate(w.publication_date),
-              createdDate: formatDate(w.created_date),
-              citations: w.cited_by_count || 0,
-              authors: getAuthors(w),
-              color: '#00d4ff',
-              doi: w.doi,
-              arxivUrl: getArXivUrl(w),
-              pdfUrl: getPdfUrl(w),
-              isSecondary: false,
-              parentId: null,
-              refsLoaded: false,
-              referencedWorks: w.referenced_works || null,
-            })
-          })
-
+        })
+        if (addedCount > 0) {
           updateAll()
-        } catch (e) {
-          console.error(e)
-          alert('Failed to import papers. Please try again.')
-        } finally {
-          if (importBtn) {
-            importBtn.innerHTML = '<iconify-icon icon="mdi:upload"></iconify-icon> Import Papers'
-            importBtn.style.pointerEvents = 'auto'
-          }
-          if (cancelBtn) {
-            cancelBtn.style.display = 'none'
-          }
+        } else {
+          alert('All selected papers are already in the graph.')
         }
       }
     })

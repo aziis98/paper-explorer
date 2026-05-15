@@ -66,6 +66,7 @@ export function $(
     | null
     | undefined
     | boolean
+    | (Node | string | null | undefined | boolean)[]
   )[]
 ) {
   const el = document.createElement(tag)
@@ -137,14 +138,36 @@ export function extractDOIs(text: string): string[] {
 }
 
 export function extractBibtexTitles(text: string): string[] {
-  const regex = /\btitle\s*=\s*(?:\{([^}]*)\}|"([^"]*)")/gi
-  let match;
-  const titles: string[] = []
-  while ((match = regex.exec(text)) !== null) {
-    const title = match[1] || match[2]
-    if (title) {
-      titles.push(title.replace(/\s+/g, ' ').replace(/[{}]/g, '').trim())
+  return extractBibtexData(text)
+    .filter(d => !d.doi) // Only return titles that don't have a DOI
+    .map(d => d.title)
+    .filter((t): t is string => !!t)
+}
+
+export function extractBibtexData(text: string): { title?: string; doi?: string }[] {
+  const entryRegex = /@\w+\s*\{[^@]*\}/g
+  const titleRegex = /\btitle\s*=\s*(?:\{([^}]*)\}|"([^"]*)")/i
+  const doiRegex = /\bdoi\s*=\s*(?:\{([^}]*)\}|"([^"]*)"|([^\s,}]*))/i
+  
+  const entries: { title?: string; doi?: string }[] = []
+  let match
+  
+  while ((match = entryRegex.exec(text)) !== null) {
+    const entryText = match[0]
+    const titleMatch = entryText.match(titleRegex)
+    const doiMatch = entryText.match(doiRegex)
+    
+    const title = titleMatch ? (titleMatch[1] || titleMatch[2]).replace(/\s+/g, ' ').replace(/[{}]/g, '').trim() : undefined
+    let doi = doiMatch ? (doiMatch[1] || doiMatch[2] || doiMatch[3]).trim() : undefined
+    
+    if (doi) {
+      // Basic cleanup for DOI field
+      doi = doi.replace(/[{}]/g, '').replace(/^https?:\/\/doi\.org\//, '').toLowerCase()
+    }
+    
+    if (title || doi) {
+      entries.push({ title, doi })
     }
   }
-  return [...new Set(titles)]
+  return entries
 }

@@ -83,7 +83,13 @@ export async function searchDOIByTitleSS(title: string): Promise<string | null> 
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
-      const r = await fetch(url)
+      const apiKey = localStorage.getItem('ss_api_key')
+      const headers: Record<string, string> = {}
+      if (apiKey) {
+        headers['x-api-key'] = apiKey
+      }
+
+      const r = await fetch(url, { headers })
       
       if (r.ok) {
         const d = await r.json()
