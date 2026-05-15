@@ -57,17 +57,29 @@ export function getMinYear(w: any) {
   return d ? parseInt(d.substring(0, 4), 10) : (w.publication_year || null)
 }
 
+type Child =
+  | Node
+  | string
+  | number
+  | null
+  | undefined
+  | boolean
+  | Child[]
+
+export function $<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props?: any,
+  ...children: Child[]
+): HTMLElementTagNameMap[K]
+export function $(
+  tag: string,
+  props?: any,
+  ...children: Child[]
+): HTMLElement
 export function $(
   tag: string,
   props: any = {},
-  ...children: (
-    | Node
-    | string
-    | null
-    | undefined
-    | boolean
-    | (Node | string | null | undefined | boolean)[]
-  )[]
+  ...children: Child[]
 ) {
   const el = document.createElement(tag)
   Object.entries(props).forEach(([key, val]) => {

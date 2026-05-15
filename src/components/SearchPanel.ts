@@ -15,7 +15,7 @@ export function SearchPanel(el: HTMLElement, options: SearchPanelOptions) {
     autocomplete: 'off',
     placeholder: 'Search papers, try "Attention is all you need"',
     style: ''
-  }) as HTMLInputElement
+  })
 
   const srchSpin = $('div', { 
     id: 'srch-spin'

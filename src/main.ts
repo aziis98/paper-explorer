@@ -105,7 +105,7 @@ const projectNameInput = $('input', {
     if (e.key === 'Enter')
       (e.target as HTMLInputElement).blur()
   },
-}) as HTMLInputElement
+})
 
 const projectDropdownList = $('div', {
   className: 'project-dropdown',

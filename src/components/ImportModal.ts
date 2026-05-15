@@ -58,7 +58,7 @@ export function ImportModal(options: ImportModalOptions) {
       onClick: () => setTab('upload'),
     },
     'Upload .bib / .txt',
-  ) as HTMLButtonElement
+  )
 
   const tabPaste = $(
     'button',
@@ -67,7 +67,7 @@ export function ImportModal(options: ImportModalOptions) {
       onClick: () => setTab('paste'),
     },
     'Paste DOIs / Text',
-  ) as HTMLButtonElement
+  )
 
   const tabs = $(
     'div',
@@ -154,7 +154,7 @@ export function ImportModal(options: ImportModalOptions) {
       pastedText = (e.target as HTMLTextAreaElement).value
       updateImportButton()
     },
-  }) as HTMLTextAreaElement
+  })
 
   const contentArea = $(
     'div',
@@ -177,7 +177,7 @@ export function ImportModal(options: ImportModalOptions) {
       },
     },
     $('iconify-icon', { icon: 'mdi:api-off' }),
-  ) as HTMLButtonElement
+  )
 
   function updateApiKeyButton() {
     const hasKey = !!localStorage.getItem('ss_api_key')
@@ -231,7 +231,7 @@ export function ImportModal(options: ImportModalOptions) {
     },
     $('iconify-icon', { icon: 'mdi:import' }),
     'Import',
-  ) as HTMLButtonElement
+  )
 
   const footer = $(
     'div',
