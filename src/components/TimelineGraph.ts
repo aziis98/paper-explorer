@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import type { Paper, Connection } from '../types'
+import { CONFIG } from '../config'
 
 export interface TimelineGraphOptions {
   onPaperClick: (paper: Paper, ev: MouseEvent) => void
@@ -67,9 +68,7 @@ export function TimelineGraph(
   let localHoveredId: string | null = null
   let localDijkstraMode = false
 
-  const colorScale = d3.scaleSequential(
-    t => d3.interpolateRgb('#0369a1', '#bae6fd')(t),
-  )
+  const colorScale = d3.scaleSequential(CONFIG.GRAPH.DIJKSTRA_INTERPOLATOR)
 
   function buildScales() {
     const dates = localPapers.filter(p => p.date).map(p => new Date(p.date!))
@@ -142,7 +141,7 @@ export function TimelineGraph(
           const d1 = distances.get(d.f.id), d2 = distances.get(d.t.id)
           if (d1 !== undefined && d2 !== undefined) return colorScale(Math.min(d1, d2))
         }
-        return '#64748b'
+        return CONFIG.GRAPH.EDGE_COLOR_DEFAULT
       })
       .attr('opacity', d => {
         if (localDijkstraMode && activeSourceId) {
@@ -166,7 +165,7 @@ export function TimelineGraph(
           const dist = distances.get(d.id)
           if (dist !== undefined) return colorScale(dist)
         }
-        return d.isSecondary ? '#64748b' : d.color || '#3b82f6'
+        return d.isSecondary ? CONFIG.GRAPH.NODE_COLOR_SECONDARY : d.color || CONFIG.GRAPH.NODE_COLOR_DEFAULT
       })
       .attr('fill-opacity', d => {
         if (localDijkstraMode && activeSourceId) return distances.has(d.id) ? 1 : 0.1

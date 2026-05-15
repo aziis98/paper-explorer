@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import type { Paper, Connection } from '../types'
+import { CONFIG } from '../config'
 
 export interface NetworkGraphOptions {
   onPaperClick: (paper: Paper, ev: MouseEvent) => void
@@ -48,9 +49,7 @@ export function NetworkGraph(
   let localDijkstraMode = false
   let lastStructureKey = ''
 
-  const colorScale = d3.scaleSequential(
-    t => d3.interpolateRgb('#0369a1', '#bae6fd')(t),
-  )
+  const colorScale = d3.scaleSequential(CONFIG.GRAPH.DIJKSTRA_INTERPOLATOR)
 
   let activeSourceId: string | null = null
   let distances = new Map<string, number>()
@@ -149,7 +148,7 @@ export function NetworkGraph(
             const d2 = distances.get(d.target.id)
             if (d1 !== undefined && d2 !== undefined) return colorScale(Math.min(d1, d2))
           }
-          return '#94a3b8'
+          return CONFIG.GRAPH.EDGE_COLOR_DEFAULT
         })
         .attr('stroke-width', 2)
         .attr('opacity', (d: any) => {
@@ -201,7 +200,7 @@ export function NetworkGraph(
             const dist = distances.get(d.id)
             if (dist !== undefined) return colorScale(dist)
           }
-          return d.isSecondary ? '#94a3b8' : d.color || '#3b82f6'
+          return d.isSecondary ? CONFIG.GRAPH.NODE_COLOR_SECONDARY : d.color || CONFIG.GRAPH.NODE_COLOR_DEFAULT
         })
         .attr('fill-opacity', d => {
           if (localDijkstraMode && activeSourceId) {
