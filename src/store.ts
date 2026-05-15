@@ -13,6 +13,7 @@ export interface State {
   sortKey: string
   sortDesc: boolean
   lastSearchResults: any[]
+  dijkstraMode: boolean
 }
 
 export interface ProjectIndexEntry {
@@ -36,6 +37,7 @@ export const state: State = {
   sortKey: 'citations',
   sortDesc: true,
   lastSearchResults: [],
+  dijkstraMode: false,
 }
 
 export const StoreManager = {
@@ -98,6 +100,16 @@ export const StoreManager = {
       }
     }
     return false
+  },
+
+  deleteProject(id: string) {
+    localStorage.removeItem(`paper-explorer-project-${id}`)
+    const index = this.getProjectsIndex().filter(p => p.id !== id)
+    this.saveProjectsIndex(index)
+    if (state.projectId === id) {
+      localStorage.removeItem('paper-explorer-last-project')
+      this.loadState()
+    }
   },
 
   createNewProject(name: string = 'New Project'): string {

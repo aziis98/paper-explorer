@@ -125,14 +125,41 @@ function renderProjectDropdown() {
           },
         },
         $(
-          'span',
-          { className: 'project-item-name' },
-          p.name,
+          'div',
+          { style: 'flex: 1; min-width: 0' },
+          $(
+            'span',
+            { className: 'project-item-name' },
+            p.name,
+          ),
+          $(
+            'span',
+            { className: 'project-item-date' },
+            new Date(p.lastModified).toLocaleString(),
+          ),
         ),
         $(
-          'span',
-          { className: 'project-item-date' },
-          new Date(p.lastModified).toLocaleString(),
+          'button',
+          {
+            className: 'project-delete-btn',
+            title: 'Delete Project',
+            onClick: (e: MouseEvent) => {
+              e.stopPropagation()
+              if (
+                confirm(
+                  `Are you sure you want to delete "${p.name}"?`,
+                )
+              ) {
+                StoreManager.deleteProject(p.id)
+                renderProjectDropdown()
+                projectNameInput.value = state.projectName
+                updateAll()
+              }
+            },
+          },
+          $('iconify-icon', {
+            icon: 'mdi:trash-can-outline',
+          }),
         ),
       ),
     )
@@ -211,6 +238,20 @@ const githubStarLink = $(
   }),
 )
 
+const navGraphToggle = $(
+  'button',
+  {
+    className: `nav-btn ${state.dijkstraMode ? 'active' : ''}`,
+    title: 'Shortest Path Mode',
+    onClick: (e: MouseEvent) => {
+      state.dijkstraMode = !state.dijkstraMode
+      navGraphToggle.classList.toggle('active', state.dijkstraMode)
+      updateAll()
+    },
+  },
+  $('iconify-icon', { icon: 'mdi:graph-outline' }),
+)
+
 const navbarEl = $(
   'div',
   { id: 'navbar' },
@@ -221,6 +262,7 @@ const navbarEl = $(
         'display: flex; gap: 8px; align-items: center; width: 33%',
     },
     navLeftToggle,
+    navGraphToggle,
     navProjectsContainer,
   ),
   searchPanelEl,
@@ -258,6 +300,7 @@ const graph = Graph(graphEl, {
       state.connections,
       state.selectedId,
       state.hoveredId,
+      state.dijkstraMode,
     )
   },
   onHoverLeave: () => {
@@ -268,6 +311,7 @@ const graph = Graph(graphEl, {
       state.connections,
       state.selectedId,
       state.hoveredId,
+      state.dijkstraMode,
     )
   },
 })
@@ -542,6 +586,7 @@ function updateAll() {
     state.connections,
     state.selectedId,
     state.hoveredId,
+    state.dijkstraMode,
   )
   leftPanel.update(state.papers, state.selectedId)
   updateRightPanelData()

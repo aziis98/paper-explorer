@@ -134,6 +134,7 @@ export function Graph(
   let localConnections: Connection[] = []
   let localSelectedId: string | null = null
   let localHoveredId: string | null = null
+  let localDijkstraMode = false
   let lastPaperIds = new Set<string>()
 
   function xsc() {
@@ -232,6 +233,35 @@ export function Graph(
     if (!xScaleBase || !yScaleBase) return
     const xs = xsc()
 
+    const distances = new Map<string, number>()
+    const activeSourceId = localHoveredId || localSelectedId
+    if (localDijkstraMode && activeSourceId) {
+      const queue = [activeSourceId]
+      distances.set(activeSourceId, 0)
+      while (queue.length > 0) {
+        const uId = queue.shift()!
+        const d = distances.get(uId)!
+        localConnections.forEach(c => {
+          if (c.fromId === uId && !distances.has(c.toId)) {
+            distances.set(c.toId, d + 1)
+            queue.push(c.toId)
+          } else if (
+            c.toId === uId &&
+            !distances.has(c.fromId)
+          ) {
+            distances.set(c.fromId, d + 1)
+            queue.push(c.fromId)
+          }
+        })
+      }
+    }
+
+    const maxDist = Math.max(0, ...distances.values())
+    const colorScale = d3.scaleSequential(
+      [0, Math.max(3, maxDist)],
+      t => d3.interpolateRgb('#0369a1', '#bae6fd')(t),
+    )
+
     gGrid.call(
       d3
         .axisLeft(yScaleBase)
@@ -299,6 +329,13 @@ export function Graph(
     lines
       .merge(enteredLines)
       .attr('opacity', d => {
+        if (localDijkstraMode && activeSourceId) {
+          const d1 = distances.get(d.fromId)
+          const d2 = distances.get(d.toId)
+          return d1 !== undefined && d2 !== undefined
+            ? 0.8
+            : 0.05
+        }
         if (!localHoveredId) return 0.6
         if (
           d.fromId === localHoveredId ||
@@ -307,14 +344,30 @@ export function Graph(
           return 1
         return 0.1
       })
-      .attr('stroke', d => d.f?.color || '#94a3b8')
-      .attr('stroke-width', d =>
-        localHoveredId &&
-        (d.fromId === localHoveredId ||
-          d.toId === localHoveredId)
+      .attr('stroke', d => {
+        if (localDijkstraMode && activeSourceId) {
+          const d1 = distances.get(d.fromId)
+          const d2 = distances.get(d.toId)
+          if (d1 !== undefined && d2 !== undefined) {
+            return colorScale(Math.min(d1, d2))
+          }
+        }
+        return d.f?.color || '#94a3b8'
+      })
+      .attr('stroke-width', d => {
+        if (localDijkstraMode && activeSourceId) {
+          const d1 = distances.get(d.fromId)
+          const d2 = distances.get(d.toId)
+          return d1 !== undefined && d2 !== undefined
+            ? 3
+            : 1
+        }
+        return localHoveredId &&
+          (d.fromId === localHoveredId ||
+            d.toId === localHoveredId)
           ? 2.5
-          : 1.5,
-      )
+          : 1.5
+      })
 
     gLines
       .selectAll<
@@ -353,8 +406,17 @@ export function Graph(
       )
       .attr('cy', d => getNodeY(d))
       .attr('r', 0)
-      .attr('fill', d => (d.isSecondary ? '#64748b' : d.color))
+      .attr('fill', d => {
+        if (localDijkstraMode && activeSourceId) {
+          const dist = distances.get(d.id)
+          if (dist !== undefined) return colorScale(dist)
+        }
+        return d.isSecondary ? '#64748b' : d.color
+      })
       .attr('fill-opacity', d => {
+        if (localDijkstraMode && activeSourceId) {
+          return distances.has(d.id) ? 1 : 0.1
+        }
         if (localHoveredId) {
           const connected =
             d.id === localHoveredId ||
@@ -400,8 +462,17 @@ export function Graph(
       .attr('stroke-width', d =>
         d.id === localSelectedId ? 2.5 : d.isSecondary ? 1.5 : 2,
       )
-      .attr('fill', d => (d.isSecondary ? '#64748b' : d.color))
+      .attr('fill', d => {
+        if (localDijkstraMode && activeSourceId) {
+          const dist = distances.get(d.id)
+          if (dist !== undefined) return colorScale(dist)
+        }
+        return d.isSecondary ? '#64748b' : d.color
+      })
       .attr('fill-opacity', d => {
+        if (localDijkstraMode && activeSourceId) {
+          return distances.has(d.id) ? 1 : 0.1
+        }
         if (localHoveredId) {
           const connected =
             d.id === localHoveredId ||
@@ -463,6 +534,7 @@ export function Graph(
       connections: Connection[],
       selectedId: string | null,
       hoveredId: string | null,
+      dijkstraMode: boolean,
     ) {
       const addedPapers = papers.filter(
         p => !lastPaperIds.has(p.id),
@@ -473,6 +545,7 @@ export function Graph(
       localConnections = connections
       localSelectedId = selectedId
       localHoveredId = hoveredId
+      localDijkstraMode = dijkstraMode
 
       if (papers.length === 0) {
         gDots.selectAll('*').remove()
