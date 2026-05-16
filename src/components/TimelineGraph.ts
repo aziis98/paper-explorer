@@ -118,7 +118,7 @@ export function TimelineGraph(
     gXAxis.call(d3.axisBottom(xs).ticks(cW / 80))
     gYAxis.call(d3.axisLeft(yScaleBase).ticks(5, d3.format(',d')))
     gGrid.call(d3.axisLeft(yScaleBase).tickSize(-cW).tickFormat(() => ''))
-      .selectAll('.tick line').attr('stroke', '#f1f5f9')
+    gGrid.select('.domain').remove()
 
     const lineData = localConnections.map(c => {
       const f = localPapers.find(p => p.id === c.fromId)
